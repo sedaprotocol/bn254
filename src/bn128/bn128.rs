@@ -18,7 +18,6 @@ extern crate bn;
 extern crate rustc_hex;
 
 use std::io::{self, Read};
-
 #[derive(Debug)]
 pub struct Error(pub &'static str);
 
@@ -28,29 +27,14 @@ impl From<&'static str> for Error {
     }
 }
 
-fn read_fr(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::Fr, Error> {
-    let mut buf = [0u8; 32];
-
-    reader
-        .read_exact(&mut buf[..])
-        .expect("reading from zero-extended memory cannot fail; qed");
-    ::bn::Fr::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid field element"))
+fn read_fr(scalar: &[u8]) -> Result<::bn::Fr, Error> {
+    ::bn::Fr::from_slice(&scalar[0..32]).map_err(|_| Error::from("Invalid field element"))
 }
 
-fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Error> {
+fn read_point(xCord: &[u8], yCord: &[u8]) -> Result<::bn::G1, Error> {
     use bn::{AffineG1, Fq, Group, G1};
-
-    let mut buf = [0u8; 32];
-
-    reader
-        .read_exact(&mut buf[..])
-        .expect("reading from zero-extended memory cannot fail; qed");
-    let px = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
-
-    reader
-        .read_exact(&mut buf[..])
-        .expect("reading from zero-extended memory cannot fail; qed");
-    let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point y coordinate"))?;
+    let px = Fq::from_slice(xCord).map_err(|_| Error::from("Invalid point x coordinate"))?;
+    let py = Fq::from_slice(yCord).map_err(|_| Error::from("Invalid point x coordinate"))?;
     Ok(if px == Fq::zero() && py == Fq::zero() {
         G1::zero()
     } else {
@@ -61,12 +45,11 @@ fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Err
 }
 
 // Can fail if any of the 2 points does not belong the bn128 curve
-pub fn bn128_add(input: &[u8], output: &mut [u8; 64]) -> Result<(), Error> {
+pub fn bn128_add(xCord1: &[u8], yCord1: &[u8], xCord2: &[u8], yCord2: &[u8],  output: &mut [u8; 64]) -> Result<(), Error> {
     use bn::AffineG1;
 
-    let mut padded_input = input.chain(io::repeat(0));
-    let p1 = read_point(&mut padded_input)?;
-    let p2 = read_point(&mut padded_input)?;
+    let p1 = read_point(xCord1,yCord1)?;
+    let p2 = read_point(xCord2, yCord2)?;
 
     let mut write_buf = [0u8; 64];
     if let Some(sum) = AffineG1::from_jacobian(p1 + p2) {
@@ -84,12 +67,11 @@ pub fn bn128_add(input: &[u8], output: &mut [u8; 64]) -> Result<(), Error> {
 }
 
 // Can fail if first paramter (bn128 curve point) does not actually belong to the curve
-pub fn bn128_mul(input: &[u8], output: &mut [u8; 64]) -> Result<(), Error> {
+pub fn bn128_mul(xCord: &[u8], yCord: &[u8], scalar: &[u8],  output: &mut [u8; 64]) -> Result<(), Error> {
     use bn::AffineG1;
 
-    let mut padded_input = input.chain(io::repeat(0));
-    let p = read_point(&mut padded_input)?;
-    let fr = read_fr(&mut padded_input)?;
+    let p = read_point(xCord, yCord)?;
+    let fr = read_fr(&scalar)?;
 
     let mut write_buf = [0u8; 64];
     if let Some(sum) = AffineG1::from_jacobian(p * fr) {
@@ -181,7 +163,8 @@ pub fn bn128_pairing(input: &[u8], output: &mut [u8; 32]) -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use rustc_hex::FromHex;
-
+    use std::fs::File;
+    use serde_json::{json, Value};
     use super::{bn128_add, bn128_mul, bn128_pairing};
 
     fn bytes(s: &'static str) -> Vec<u8> {
@@ -217,14 +200,20 @@ mod tests {
     fn test_bn128_add() {
         // zero-points additions
         {
-            let input = FromHex::from_hex(
-                "\
-                 0000000000000000000000000000000000000000000000000000000000000000\
-                 0000000000000000000000000000000000000000000000000000000000000000\
-                 0000000000000000000000000000000000000000000000000000000000000000\
-                 0000000000000000000000000000000000000000000000000000000000000000",
-            )
-                .unwrap();
+            let x1 = FromHex::from_hex(
+                "0000000000000000000000000000000000000000000000000000000000000000"
+            ).unwrap();
+            let y1 = FromHex::from_hex(
+                "0000000000000000000000000000000000000000000000000000000000000000"
+            ).unwrap();
+            let x2 = FromHex::from_hex(
+                "0000000000000000000000000000000000000000000000000000000000000000"
+            ).unwrap();
+            let y2 = FromHex::from_hex(
+                "0000000000000000000000000000000000000000000000000000000000000000"
+            ).unwrap();
+                 
+                
 
             let mut output = [0u8; 64];
             let expected = FromHex::from_hex(
@@ -234,40 +223,27 @@ mod tests {
             )
                 .unwrap();
 
-            bn128_add(&input[..], &mut output).expect("Builtin should not fail");
+            bn128_add(&x1, &y1, &x2, &y2, &mut output).expect("Builtin should not fail");
             assert_eq!(output.to_vec(), expected);
         }
-
-        // no input, should not fail
-        {
-            let empty_input = [0u8; 0];
-
-            let mut output = [0u8; 64];
-            let expected = FromHex::from_hex(
-                "\
-                 0000000000000000000000000000000000000000000000000000000000000000\
-                 0000000000000000000000000000000000000000000000000000000000000000",
-            )
-                .unwrap();
-
-            bn128_add(&empty_input[..], &mut output).expect("Builtin should not fail");
-            assert_eq!(output.to_vec(), expected);
-        }
-
         // should fail - point not on curve
         {
-            let input = FromHex::from_hex(
-                "\
-                 1111111111111111111111111111111111111111111111111111111111111111\
-                 1111111111111111111111111111111111111111111111111111111111111111\
-                 1111111111111111111111111111111111111111111111111111111111111111\
-                 1111111111111111111111111111111111111111111111111111111111111111",
-            )
-                .unwrap();
+            let x1 = FromHex::from_hex(
+                "1111111111111111111111111111111111111111111111111111111111111111"
+            ).unwrap();
+            let y1 = FromHex::from_hex(
+                "1111111111111111111111111111111111111111111111111111111111111111"
+            ).unwrap();
+            let x2 = FromHex::from_hex(
+                "1111111111111111111111111111111111111111111111111111111111111111"
+            ).unwrap();
+            let y2 = FromHex::from_hex(
+                "1111111111111111111111111111111111111111111111111111111111111111"
+            ).unwrap();
 
             let mut output = [0u8; 64];
 
-            let res = bn128_add(&input[..], &mut output);
+            let res = bn128_add(&x1, &y1, &x2, &y2, &mut output);
             assert!(res.is_err(), "There should be built-in error here");
         }
     }
@@ -276,13 +252,15 @@ mod tests {
     fn test_bn128_mul() {
         // zero-point multiplication
         {
-            let input = FromHex::from_hex(
-                "\
-                 0000000000000000000000000000000000000000000000000000000000000000\
-                 0000000000000000000000000000000000000000000000000000000000000000\
-                 0200000000000000000000000000000000000000000000000000000000000000",
-            )
-                .unwrap();
+            let x = FromHex::from_hex(
+                "0000000000000000000000000000000000000000000000000000000000000000"
+            ).unwrap();
+            let y = FromHex::from_hex(
+                "0000000000000000000000000000000000000000000000000000000000000000"
+            ).unwrap();
+            let scalar = FromHex::from_hex(
+                "0200000000000000000000000000000000000000000000000000000000000000"
+            ).unwrap();
 
             let mut output = [0u8; 64];
             let expected = FromHex::from_hex(
@@ -292,23 +270,25 @@ mod tests {
             )
                 .unwrap();
 
-            bn128_mul(&input[..], &mut output).expect("Builtin should not fail");
+            bn128_mul(&x, &y, &scalar, &mut output).expect("Builtin should not fail");
             assert_eq!(output.to_vec(), expected);
         }
 
         // should fail - point not on curve
         {
-            let input = FromHex::from_hex(
-                "\
-                 1111111111111111111111111111111111111111111111111111111111111111\
-                 1111111111111111111111111111111111111111111111111111111111111111\
-                 0f00000000000000000000000000000000000000000000000000000000000000",
-            )
-                .unwrap();
+            let x = FromHex::from_hex(
+                "1111111111111111111111111111111111111111111111111111111111111111"
+            ).unwrap();
+            let y = FromHex::from_hex(
+                "1111111111111111111111111111111111111111111111111111111111111111"
+            ).unwrap();
+            let scalar = FromHex::from_hex(
+                "0f00000000000000000000000000000000000000000000000000000000000000"
+            ).unwrap();
 
             let mut output = [0u8; 64];
 
-            let res = bn128_mul(&input[..], &mut output);
+            let res = bn128_mul(&x, &y, &scalar, &mut output);
             assert!(res.is_err(), "There should be built-in error here");
         }
     }
@@ -367,37 +347,51 @@ mod tests {
     }
 
     #[test]
-    fn test_bn128_add_ethereum() {
-        let input = FromHex::from_hex(
-            "\
-             18b18acfb4c2c30276db5411368e7185b311dd124691610c5d3b74034e093dc9\
-             063c909c4720840cb5134cb9f59fa749755796819658d32efc0d288198f37266\
-             07c2b7f58a84bd6145f00c9c2bc0bb1a187f20ff2c92963a88019e7c6a014eed\
-             06614e20c147e940f2d70da3f74c9a17df361706a4485c742bd6788478fa17d7",
-        )
-            .unwrap();
-
+    fn test_bn128_add_ethereum_json() {
+      let file = File::open("./src/bn256.json").expect("File should open read only");
+      let json: Value = serde_json::from_reader(file).expect("File should be proper JSON");
+      let adds = json["add"].as_array().expect("File should have priv key");
+      for (i, elem) in adds.iter().enumerate() {
+        println!("Test number {}:", i);
         let mut output = [0u8; 64];
-        let expected = FromHex::from_hex(
-            "\
-             2243525c5efd4b9c3d3c45ac0ca3fe4dd85e830a4ce6b65fa1eeaee202839703\
-             301d1d33be6da8e509df21cc35964723180eed7532537db9ae5e7d48f195c915",
-        )
-            .unwrap();
-
-        bn128_add(&input[..], &mut output).expect("Builtin should not fail");
+        let x1 = FromHex::from_hex(elem.get("x1").unwrap().as_str().unwrap()).unwrap();
+        let y1 = FromHex::from_hex(elem.get("y1").unwrap().as_str().unwrap()).unwrap();
+        let x2 = FromHex::from_hex(elem.get("x2").unwrap().as_str().unwrap()).unwrap();
+        let y2 = FromHex::from_hex(elem.get("y2").unwrap().as_str().unwrap()).unwrap();
+        let expected = FromHex::from_hex(elem.get("result").unwrap().as_str().unwrap()).unwrap();
+        bn128_add(&x1, &y1, &x2, &y2, &mut output).expect("Builtin should not fail");
         assert_eq!(output.to_vec(), expected);
+      };
     }
 
     #[test]
+    fn test_bn128_mul_ethereum_json() {
+      let file = File::open("./src/bn256.json").expect("File should open read only");
+      let json: Value = serde_json::from_reader(file).expect("File should be proper JSON");
+      let adds = json["mul"].as_array().expect("File should have priv key");
+      for (i, elem) in adds.iter().enumerate() {
+        println!("Test number {}:", i);
+        let mut output = [0u8; 64];
+        let x = FromHex::from_hex(elem.get("x").unwrap().as_str().unwrap()).unwrap();
+        let y = FromHex::from_hex(elem.get("y").unwrap().as_str().unwrap()).unwrap();
+        let scalar = FromHex::from_hex(elem.get("scalar").unwrap().as_str().unwrap()).unwrap();
+        let expected = FromHex::from_hex(elem.get("result").unwrap().as_str().unwrap()).unwrap();
+        bn128_mul(&x, &y, &scalar, &mut output).expect("Builtin should not fail");
+        assert_eq!(output.to_vec(), expected);
+      };
+    }   
+
+    #[test]
     fn test_bn128_mul_ethereum() {
-        let input = FromHex::from_hex(
-            "\
-             2bd3e6d0f3b142924f5ca7b49ce5b9d54c4703d7ae5648e61d02268b1a0a9fb7\
-             21611ce0a6af85915e2f1d70300909ce2e49dfad4a4619c8390cae66cefdb204\
-             00000000000000000000000000000000000000000000000011138ce750fa15c2",
-        )
-            .unwrap();
+        let x = FromHex::from_hex(
+                "2bd3e6d0f3b142924f5ca7b49ce5b9d54c4703d7ae5648e61d02268b1a0a9fb7"
+            ).unwrap();
+            let y = FromHex::from_hex(
+                "21611ce0a6af85915e2f1d70300909ce2e49dfad4a4619c8390cae66cefdb204"
+            ).unwrap();
+            let scalar = FromHex::from_hex(
+                "00000000000000000000000000000000000000000000000011138ce750fa15c2"
+            ).unwrap();
 
         let mut output = [0u8; 64];
         let expected = FromHex::from_hex(
@@ -407,7 +401,7 @@ mod tests {
         )
             .unwrap();
 
-        bn128_mul(&input[..], &mut output).expect("Builtin should not fail");
+        bn128_mul(&x, &y, &scalar, &mut output).expect("Builtin should not fail");
         assert_eq!(output.to_vec(), expected);
     }
 }

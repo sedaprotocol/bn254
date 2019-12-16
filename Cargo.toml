@@ -9,3 +9,6 @@ edition = "2018"
 [dependencies]
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 rustc-hex = "1.0"
+serde_json = "1.0.39"
+
+[dev-dependencies]
