@@ -13,7 +13,12 @@ pub trait BLS<PublicKey, SecretKey, Signature> {
     fn sign(&mut self, secret_key: SecretKey, msg: &[u8]) -> Result<Vec<u8>, Self::Error>;
 
     /// TODO: verify using BLS curve
-    fn verify(&mut self, public_key: PublicKey, signature: Signature, msg: &[u8]) -> Result<bool, Self::Error>;
+    fn verify(
+        &mut self,
+        public_key: PublicKey,
+        signature: Signature,
+        msg: &[u8],
+    ) -> Result<bool, Self::Error>;
 
     /// TODO:
     fn aggregate_public_keys(&mut self, public_key: &[PublicKey]) -> Result<Vec<u8>, Self::Error>;

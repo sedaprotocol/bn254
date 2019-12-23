@@ -7,11 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-failure = "0.1.5"
 bn = { git = "https://github.com/paritytech/bn", default-features = false}
+byteorder = "*"
+digest = "0.8.1"
+failure = "0.1.5"
+hex = "0.3.2"
 rustc-hex = "1.0"
 serde_json = "1.0.39"
-hex = "0.3.2"
-byteorder = "*"
+sha2 = "0.8.0"
 
 [dev-dependencies]
