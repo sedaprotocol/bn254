@@ -9,6 +9,7 @@ use byteorder::{BigEndian, ByteOrder};
 use digest::Digest;
 use failure::Fail;
 use sha2;
+use failure::_core::ptr::hash;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Fail)]
@@ -230,13 +231,19 @@ impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
         public.to_compressed()
     }
 
-    // 1. Hash_to_try_and_increment (as in VRF) --> H(m)
-    // 2. Verify if point exists in G1
-    // 3. from_compressed(H(m)) --> G1
-    // 3. privKey * H(m) --> privKey * G1 --> G1 point
-    // 4. `to_compressed(G1)` --> u8
+    // TODO: Add documentation
     fn sign(&mut self, secret_key: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error> {
-        unimplemented!()
+        let public_key = self.derive_public_key(&secret_key)?;
+
+        // 1. Hash_to_try_and_increment --> H(m) as point in G1 (only if it exists)
+        let hash_point = self.hash_to_try_and_increment(&public_key, &msg)?;
+
+        // 2. Multiply hash_point times secret_key --> Signature in G1
+        let sk = Fr::from_slice(&secret_key)?;
+        let signature = hash_point * sk;
+
+        // 3. Return signature as compressed bytes
+        self.to_compressed_g1(signature)
     }
 
     // e( H(m), PubKey ) = e( Signature, G2::one())
@@ -344,8 +351,9 @@ mod test {
     }
 
     /// Regression Test for the hash_to_try function
+    /// TODO: double-check test
     #[test]
-    fn test_hash_to_try_and_increment_1() {
+    fn test_regression_hash_to_try_and_increment() {
         let mut curve = Bn128 {};
 
         // Public key
@@ -364,4 +372,26 @@ mod test {
                 .unwrap();
         assert_eq!(hash_bytes, expected_hash);
     }
+
+    /// Regression Test for the `sign` function
+    /// TODO: double-check test
+    #[test]
+    fn test_regression_sign() {
+        let mut bn128 = Bn128 {};
+
+        // Inputs: secret key and message "sample" in ASCII
+        let secret_key =
+            hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c")
+                .unwrap();
+        let data = hex::decode("73616d706c65").unwrap();
+
+        // Sign data with secret key
+        let signature = bn128.sign(&secret_key, &data).unwrap();
+
+        let expected_signature =
+            hex::decode("0224942ea9eb2845931cdd69d437a9e9bfc64b603497f72ab34f2accc30bb26bd1")
+                .unwrap();
+        assert_eq!(signature, expected_signature);
+    }
+
 }
