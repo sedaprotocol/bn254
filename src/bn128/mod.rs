@@ -243,8 +243,15 @@ impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
         PublicKey{pk: agg_public_key?}.to_compressed()
     }
 
-    fn aggregate_signatures(&mut self, public_key: &[&[u8]]) -> Result<Vec<u8>, Self::Error> {
-        unimplemented!()
+    // TODO: Add documentation
+    fn aggregate_signatures(&mut self, signatures: &[&[u8]]) -> Result<Vec<u8>, Self::Error> {
+        let agg_signatures: Result<G1, Error> = signatures.iter().try_fold(G1::zero(), |acc, &compressed| {
+            let signature= G1::from_compressed(&compressed)?;
+
+            Ok(acc + signature)
+        });
+
+        self.to_compressed_g1(agg_signatures?)
     }
 }
 
@@ -437,4 +444,23 @@ mod test {
         let expected = hex::decode("0b061848379c6bccd9e821e63ff6932738835b78e1e10079a0866073eba5b8bb444afbb053d16542e2b839477434966e5a9099093b6b3351f84ac19fe28f096548").unwrap();
         assert_eq!(agg_public_key, expected);
     }
+
+    /// Test `aggregate_signatures`
+    #[test]
+    fn test_aggregate_signatures_1() {
+        let mut bn128 = Bn128 {};
+
+        // Signatures (as valid points on G1)
+        let sign_1 = bn128.to_compressed_g1(G1::one()).unwrap();
+        let sign_2 = bn128.to_compressed_g1(G1::one()).unwrap();
+        let signatures = [&sign_1[..], &sign_2[..]];
+
+        // Aggregation
+        let agg_signatures =bn128.aggregate_signatures(&signatures).expect("Signature aggregation should not fail if G1 points are valid.");
+
+        // Check
+        let expected = hex::decode("02030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3").unwrap();
+        assert_eq!(agg_signatures, expected);
+    }
+
 }
