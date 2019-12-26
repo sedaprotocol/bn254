@@ -1,5 +1,5 @@
-//! TODO: Document BLS aggregate signatures with curve bn128 (for Ethereum)
-//! TODO: why &mut self -> crypto libs often require mutable contexts
+//! TODO: Document BLS aggregate signatures with curve bn128 (used in Ethereum)
+//! TODO: why &mut self
 
 mod bn128;
 
@@ -18,7 +18,7 @@ pub trait BLS<PublicKey, SecretKey, Signature> {
         public_key: PublicKey,
         signature: Signature,
         msg: &[u8],
-    ) -> Result<bool, Self::Error>;
+    ) -> Result<(), Self::Error>;
 
     /// TODO:
     fn aggregate_public_keys(&mut self, public_key: &[PublicKey]) -> Result<Vec<u8>, Self::Error>;

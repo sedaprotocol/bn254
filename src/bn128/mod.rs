@@ -1,59 +1,16 @@
 use crate::BLS;
 
-extern crate bn;
-extern crate rustc_hex;
-
-use bn::{arith, AffineG1, AffineG2, Fq, Fq2, Fr, Group, Gt, G1, G2};
-use bn::{CurveError, FieldError, GroupError};
+use bn::{arith, AffineG1, AffineG2, Fq, Fq2, Fr,  G1, G2, Group, Gt, pairing_batch};
 use byteorder::{BigEndian, ByteOrder};
 use digest::Digest;
-use failure::Fail;
-use sha2;
 use failure::_core::ptr::hash;
+use sha2;
 
-#[allow(non_camel_case_types)]
-#[derive(Debug, Fail)]
-pub enum Error {
-    /// The `hash_to_point()` function could not find a valid point
-    #[fail(display = "Hash to point function could not find a valid point")]
-    HashToPointError,
-    /// Unknown error
-    #[fail(display = "Unknown error")]
-    Unknown,
-}
+/// Module containing error definitions
+mod error;
+use error::Error;
 
-impl From<CurveError> for Error {
-    fn from(_error: CurveError) -> Self {
-        Error::Unknown {}
-    }
-}
-
-impl From<FieldError> for Error {
-    fn from(_error: FieldError) -> Self {
-        Error::Unknown {}
-    }
-}
-
-impl From<GroupError> for Error {
-    fn from(_error: GroupError) -> Self {
-        Error::Unknown {}
-    }
-}
-
-impl From<bn::arith::Error> for Error {
-    fn from(_error: bn::arith::Error) -> Self {
-        Error::Unknown {}
-    }
-}
-
-pub fn to_u512(myass: Fq2) -> arith::U512 {
-    let c0: arith::U256 = (myass.real()).into_u256();
-    let c1: arith::U256 = (myass.imaginary()).into_u256();
-
-    arith::U512::new(&c1, &c0, &Fq::modulus())
-}
-
-struct Bn128 {}
+struct Bn128;
 
 impl Bn128 {
     /// Function to convert an arbitrary string to a point in the curve
@@ -147,6 +104,7 @@ impl Bn128 {
 
         hash
     }
+
 }
 
 pub struct PrivateKey {
@@ -170,6 +128,13 @@ impl PrivateKey {
 }
 
 impl PublicKey {
+    pub fn to_u512(&self, point: Fq2) -> arith::U512 {
+        let c0: arith::U256 = (point.real()).into_u256();
+        let c1: arith::U256 = (point.imaginary()).into_u256();
+
+        arith::U512::new(&c1, &c0, &Fq::modulus())
+    }
+
     pub fn from_compressed(bytes: &[u8]) -> Result<Self, Error> {
         let uncompressed = G2::from_compressed(&bytes)?;
         Ok(PublicKey { pk: uncompressed })
@@ -189,7 +154,7 @@ impl PublicKey {
         // Get Y and get sign
         let y = affine_coords.y();
         let y_neg = -y;
-        let sign: u8 = if to_u512(y) > to_u512(y_neg) {
+        let sign: u8 = if self.to_u512(y) > self.to_u512(y_neg) {
             0x0b
         } else {
             0x0a
@@ -210,10 +175,7 @@ impl PublicKey {
         result.append(&mut buf.to_vec());
         Ok(result)
     }
-}
 
-fn read_fr(scalar: &[u8]) -> Result<bn::Fr, Error> {
-    Ok(bn::Fr::from_slice(&scalar[0..32])?)
 }
 
 impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
@@ -221,7 +183,7 @@ impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
 
     // TODO: Add documentation -> public key in G2
     fn derive_public_key(&mut self, secret_key: &[u8]) -> Result<Vec<u8>, Error> {
-        let scalar = read_fr(&secret_key)?;
+        let scalar = Fr::from_slice(&secret_key[0..32])?;
         let key = PrivateKey::from_sk(&scalar);
         let public = key.to_public()?;
 
@@ -246,14 +208,28 @@ impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
         self.to_compressed_g1(signature)
     }
 
-    // e( H(m), PubKey ) = e( Signature, G2::one())
+    // TODO: Add documentation
     fn verify(
         &mut self,
         public_key: &[u8],
         signature: &[u8],
         msg: &[u8],
-    ) -> Result<bool, Self::Error> {
-        unimplemented!()
+    ) -> Result<(), Self::Error> {
+        let mut vals = Vec::new();
+        // First pairing input: e(H(m), PubKey)
+        let hash_point = self.hash_to_try_and_increment(&public_key, &msg)?;
+        let public_key_point = G2::from_compressed(&public_key)?;
+        vals.push((hash_point, public_key_point));
+        // Second pairing input:  e(-Signature,G2::one())
+        let signature_point = G1::from_compressed(&signature)?;
+        vals.push((signature_point, -G2::one()));
+        // Pairing batch with one negated point
+        let mul = pairing_batch(&vals);
+        if mul == Gt::one() {
+            Ok(())
+        } else {
+            Err(Error::VerificationFailed)
+        }
     }
 
     fn aggregate_public_keys(&mut self, public_key: &[&[u8]]) -> Result<Vec<u8>, Self::Error> {
@@ -350,10 +326,31 @@ mod test {
         );
     }
 
-    /// Regression Test for the hash_to_try function
-    /// TODO: double-check test
     #[test]
-    fn test_regression_hash_to_try_and_increment() {
+    fn test_to_public_key_4() {
+        let secret_key = hex::decode("0f6b8785374476a3b3e4bde2c64dfb12964c81c7930d32367c8e318609387872").unwrap();
+        let mut curve = Bn128 {};
+        let public_key = curve.derive_public_key(&secret_key).unwrap();
+        let g2 = G2::from_compressed(
+            &public_key
+        ).unwrap();
+        assert_eq!(g2.x(),
+                   Fq2::new(
+                       Fq::from_slice(&hex::decode("270567a05b56b02e813281d554f46ce0c1b742b622652ef5a41d69afb6eb8338").unwrap()).unwrap(),
+                       Fq::from_slice(&hex::decode("1bab5671c5107de67fe06007dde240a84674c8ff13eeac6d64bad0caf2cfe53e").unwrap()).unwrap(),
+                   )
+        );
+        assert_eq!(g2.y(),
+                   Fq2::new(
+                       Fq::from_slice(&hex::decode("0142f4e04fc1402e17ae7e624fd9bd15f1eae0a1d8eda4e26ab70fd4cd793338").unwrap()).unwrap(),
+                       Fq::from_slice(&hex::decode("02b54a5deaaf86dc7f03d080c8373d62f03b3be06dac42b2d9426a8ebd0caf4a").unwrap()).unwrap(),
+                   )
+        );
+    }
+
+    /// Test for the `hash_to_try_and_increment` function with own test vector
+    #[test]
+    fn test_hash_to_try_and_increment_1() {
         let mut curve = Bn128 {};
 
         // Public key
@@ -373,10 +370,9 @@ mod test {
         assert_eq!(hash_bytes, expected_hash);
     }
 
-    /// Regression Test for the `sign` function
-    /// TODO: double-check test
+    /// Test for the `sign`` function with own test vector
     #[test]
-    fn test_regression_sign() {
+    fn test_sign_1() {
         let mut bn128 = Bn128 {};
 
         // Inputs: secret key and message "sample" in ASCII
@@ -394,4 +390,26 @@ mod test {
         assert_eq!(signature, expected_signature);
     }
 
+    /// Test `verify` function with own signed message
+    #[test]
+    fn test_verify_signed_msg() {
+        let mut bn128 = Bn128 {};
+
+        // Public key
+        let secret_key =
+            hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c")
+                .unwrap();
+        let public_key = bn128.derive_public_key(&secret_key).unwrap();
+
+        // Signature
+        let signature =
+            hex::decode("0224942ea9eb2845931cdd69d437a9e9bfc64b603497f72ab34f2accc30bb26bd1")
+                .unwrap();
+
+        // Message signed
+        let msg = hex::decode("73616d706c65").unwrap();
+
+        // Verify signature
+        assert!(bn128.verify(&public_key, &signature, &msg).is_ok(), "Verification failed");
+    }
 }
