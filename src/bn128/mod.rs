@@ -232,8 +232,15 @@ impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
         }
     }
 
-    fn aggregate_public_keys(&mut self, public_key: &[&[u8]]) -> Result<Vec<u8>, Self::Error> {
-        unimplemented!()
+    // TODO: Add documentation
+    fn aggregate_public_keys(&mut self, public_keys: &[&[u8]]) -> Result<Vec<u8>, Self::Error> {
+        let agg_public_key: Result<G2, Error> = public_keys.iter().try_fold(G2::zero(), |acc, &compressed| {
+            let public_key= PublicKey::from_compressed(&compressed)?;
+
+            Ok(acc + public_key.pk)
+        });
+
+        PublicKey{pk: agg_public_key?}.to_compressed()
     }
 
     fn aggregate_signatures(&mut self, public_key: &[&[u8]]) -> Result<Vec<u8>, Self::Error> {
@@ -411,5 +418,23 @@ mod test {
 
         // Verify signature
         assert!(bn128.verify(&public_key, &signature, &msg).is_ok(), "Verification failed");
+    }
+
+    /// Test `aggregate_public_keys`
+    #[test]
+    fn test_aggregate_public_keys_1() {
+        let mut bn128 = Bn128 {};
+
+        // Public keys
+        let public_key_1 = PublicKey{pk: G2::one()}.to_compressed().unwrap();
+        let public_key_2 = PublicKey{pk: G2::one()}.to_compressed().unwrap();
+        let public_keys = [&public_key_1[..], &public_key_2[..]];
+
+        // Aggregation
+        let agg_public_key =bn128.aggregate_public_keys(&public_keys).unwrap();
+
+        // Check
+        let expected = hex::decode("0b061848379c6bccd9e821e63ff6932738835b78e1e10079a0866073eba5b8bb444afbb053d16542e2b839477434966e5a9099093b6b3351f84ac19fe28f096548").unwrap();
+        assert_eq!(agg_public_key, expected);
     }
 }
