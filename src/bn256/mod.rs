@@ -1,5 +1,7 @@
 //! TODO: describe the signature scheme followed + add related references
 //!
+//! BLS aggregate signatures with curve bn256 (used in Ethereum)
+//!
 //! BLS VERIFICATION: e(H(m), PubKey) = e(Signature, G2::one)
 //!
 //! - add test vectors from https://github.com/ethereum/go-ethereum/blob/7b189d6f1f7eedf46c6607901af291855b81112b/core/vm/contracts_test.go
@@ -8,7 +10,7 @@
 //!
 //! Some sources to fast hash to curve algorithms:
 //! https://gist.github.com/hermanjunge/3308fbd3627033fc8d8ca0dd50809844
-use crate::BLS;
+use crate::MultiSignature;
 
 use bn::{arith, pairing_batch, AffineG1, AffineG2, Fq, Fq2, Fr, Group, Gt, G1, G2};
 use byteorder::{BigEndian, ByteOrder};
@@ -16,10 +18,8 @@ use digest::Digest;
 use sha2;
 
 pub mod error;
-
 use error::Error;
 
-/// Hola caracola
 pub struct Bn256;
 
 impl Bn256 {
@@ -230,7 +230,7 @@ impl PublicKey {
     }
 }
 
-impl BLS<&[u8], &[u8], &[u8]> for Bn256 {
+impl MultiSignature<&[u8], &[u8], &[u8]> for Bn256 {
     type Error = Error;
 
     // TODO: Add documentation -> public key in G2
