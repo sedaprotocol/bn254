@@ -17,6 +17,7 @@ use sha2;
 mod error;
 
 use error::Error;
+use std::convert::TryInto;
 
 struct Bn128;
 
@@ -166,6 +167,21 @@ impl PublicKey {
         Ok(PublicKey { pk: uncompressed })
     }
 
+    pub fn from_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
+
+        if bytes.len() != 128 {
+            return Err(Error::InvalidLength {
+            });
+        }
+
+        let x = Fq2::new(Fq::from_slice(&bytes[0..32])?, Fq::from_slice(&bytes[32..64])?);
+
+        let y = Fq2::new(Fq::from_slice(&bytes[64..96])?, Fq::from_slice(&bytes[96..128])?);
+
+        let pub_key = AffineG2::new(x, y)?;
+        Ok(PublicKey { pk: pub_key.into() })
+    }
+
     pub fn to_compressed(&self) -> Result<Vec<u8>, Error> {
         let modulus = Fq::modulus();
         // From Jacobian to Affine first!
@@ -200,6 +216,26 @@ impl PublicKey {
         result.push(sign);
         result.append(&mut buf.to_vec());
         Ok(result)
+    }
+
+    pub fn to_uncompressed(&self) -> Result<Vec<u8>, Error> {
+        // From Jacobian to Affine first!
+        let affine_coords = AffineG2::from_jacobian(self.pk).ok_or(Error::PointInJacobian)?;
+        let mut result: [u8; 32*4] = [0; (4 * 32)];
+
+        // Get X real coordinate
+        Fq::into_u256(affine_coords.x().real()).to_big_endian(&mut result[0..32]);
+
+        // Get X imaginary coordinate
+        Fq::into_u256(affine_coords.x().imaginary()).to_big_endian(&mut result[32..64]);
+
+        // Get Y real coordinate
+        Fq::into_u256(affine_coords.y().real()).to_big_endian(&mut result[64..96]);
+
+        // Get Y imaginary coordinate
+        Fq::into_u256(affine_coords.y().imaginary()).to_big_endian(&mut result[96..128]);
+
+        Ok(result.to_vec())
     }
 }
 
@@ -262,14 +298,13 @@ impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
         let agg_public_key: Result<G2, Error> =
             public_keys.iter().try_fold(G2::zero(), |acc, &compressed| {
                 let public_key = PublicKey::from_compressed(&compressed)?;
-
-                Ok(acc + public_key.pk)
-            });
-
+            Ok(acc + public_key.pk)
+        });
+        
         PublicKey {
             pk: agg_public_key?,
         }
-        .to_compressed()
+            .to_compressed()
     }
 
     // TODO: Add documentation
@@ -308,48 +343,19 @@ mod test {
         let secret_key =
             hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565")
                 .unwrap();
+        let expected = hex::decode("28fe26becbdc0384aa67bf734d08ec78ecc2330f0aa02ad9da00f56c37907f78\
+                                                  2cd080d897822a95a0fb103c54f06e9bf445f82f10fe37efce69ecb59514abc8\
+                                                  237faeb0351a693a45d5d54aa9759f52a71d76edae2132616d6085a9b2228bf9\
+                                                  0f46bd1ef47552c3089604c65a3e7154e3976410be01149b60d5a41a6053e6c2").unwrap();
         let mut curve = Bn128 {};
         let public_key = curve.derive_public_key(&secret_key).unwrap();
         let g2 = G2::from_compressed(&public_key).unwrap();
+        let expected_g2 = PublicKey::from_uncompressed(&expected).unwrap();
 
-        assert_eq!(
-            g2.x(),
-            Fq2::new(
-                Fq::from_slice(
-                    &hex::decode(
-                        "28fe26becbdc0384aa67bf734d08ec78ecc2330f0aa02ad9da00f56c37907f78"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-                Fq::from_slice(
-                    &hex::decode(
-                        "2cd080d897822a95a0fb103c54f06e9bf445f82f10fe37efce69ecb59514abc8"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-            )
-        );
-        assert_eq!(
-            g2.y(),
-            Fq2::new(
-                Fq::from_slice(
-                    &hex::decode(
-                        "237faeb0351a693a45d5d54aa9759f52a71d76edae2132616d6085a9b2228bf9"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-                Fq::from_slice(
-                    &hex::decode(
-                        "0f46bd1ef47552c3089604c65a3e7154e3976410be01149b60d5a41a6053e6c2"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-            )
-        );
+        let uncompressed_slice = expected_g2.to_uncompressed().unwrap();
+
+        assert_eq!(uncompressed_slice, expected);
+        assert_eq!(g2, expected_g2.pk);
     }
 
     #[test]
@@ -357,47 +363,20 @@ mod test {
         let secret_key =
             hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c")
                 .unwrap();
+        let expected = hex::decode("1cd5df38ed2f184b9830bfd3c2175d53c1455352307ead8cbd7c6201202f4aa8\
+                                                  02ce1c4241143cc61d82589c9439c6dd60f81fa6f029625d58bc0f2e25e4ce89\
+                                                  0ba19ae3b5a298b398b3b9d410c7e48c4c8c63a1d6b95b098289fbe1503d00fb\
+                                                  2ec596e93402de0abc73ce741f37ed4984a0b59c96e20df8c9ea1c4e6ec04556").unwrap();
+
         let mut curve = Bn128 {};
         let public_key = curve.derive_public_key(&secret_key).unwrap();
         let g2 = G2::from_compressed(&public_key).unwrap();
-        assert_eq!(
-            g2.x(),
-            Fq2::new(
-                Fq::from_slice(
-                    &hex::decode(
-                        "1cd5df38ed2f184b9830bfd3c2175d53c1455352307ead8cbd7c6201202f4aa8"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-                Fq::from_slice(
-                    &hex::decode(
-                        "02ce1c4241143cc61d82589c9439c6dd60f81fa6f029625d58bc0f2e25e4ce89"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-            )
-        );
-        assert_eq!(
-            g2.y(),
-            Fq2::new(
-                Fq::from_slice(
-                    &hex::decode(
-                        "0ba19ae3b5a298b398b3b9d410c7e48c4c8c63a1d6b95b098289fbe1503d00fb"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-                Fq::from_slice(
-                    &hex::decode(
-                        "2ec596e93402de0abc73ce741f37ed4984a0b59c96e20df8c9ea1c4e6ec04556"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-            )
-        );
+        let expected_g2 = PublicKey::from_uncompressed(&expected).unwrap();
+
+        let uncompressed_slice = expected_g2.to_uncompressed().unwrap();
+
+        assert_eq!(uncompressed_slice, expected);
+        assert_eq!(g2, expected_g2.pk);
     }
 
     #[test]
@@ -405,47 +384,20 @@ mod test {
         let secret_key =
             hex::decode("26fb4d661491b0a623637a2c611e34b6641cdea1743bee94c17b67e5ef14a550")
                 .unwrap();
+        let expected = hex::decode("077dfcf14e940b69bf88fa1ad99b6c7e1a1d6d2cb8813ac53383bf505a17f8ff\
+                                                  2d1a9b04a2c5674373353b5a25591292e69c37c0b84d9ef1c780a57bb98638e6\
+                                                  2dc52f109b333c4125bccf55bc3a839ce57676514405656c79e577e231519273\
+                                                  2410eee842807d9325f22d087fa6bc79d9bbea07f5fa8c345e1e57b28ad54f84").unwrap();
+
         let mut curve = Bn128 {};
         let public_key = curve.derive_public_key(&secret_key).unwrap();
         let g2 = G2::from_compressed(&public_key).unwrap();
-        assert_eq!(
-            g2.x(),
-            Fq2::new(
-                Fq::from_slice(
-                    &hex::decode(
-                        "077dfcf14e940b69bf88fa1ad99b6c7e1a1d6d2cb8813ac53383bf505a17f8ff"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-                Fq::from_slice(
-                    &hex::decode(
-                        "2d1a9b04a2c5674373353b5a25591292e69c37c0b84d9ef1c780a57bb98638e6"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-            )
-        );
-        assert_eq!(
-            g2.y(),
-            Fq2::new(
-                Fq::from_slice(
-                    &hex::decode(
-                        "2dc52f109b333c4125bccf55bc3a839ce57676514405656c79e577e231519273"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-                Fq::from_slice(
-                    &hex::decode(
-                        "2410eee842807d9325f22d087fa6bc79d9bbea07f5fa8c345e1e57b28ad54f84"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-            )
-        );
+        let expected_g2 = PublicKey::from_uncompressed(&expected).unwrap();
+
+        let uncompressed_slice = expected_g2.to_uncompressed().unwrap();
+
+        assert_eq!(uncompressed_slice, expected);
+        assert_eq!(g2, expected_g2.pk);
     }
 
     #[test]
@@ -455,45 +407,17 @@ mod test {
                 .unwrap();
         let mut curve = Bn128 {};
         let public_key = curve.derive_public_key(&secret_key).unwrap();
+        let expected = hex::decode("270567a05b56b02e813281d554f46ce0c1b742b622652ef5a41d69afb6eb8338\
+                                                  1bab5671c5107de67fe06007dde240a84674c8ff13eeac6d64bad0caf2cfe53e\
+                                                  0142f4e04fc1402e17ae7e624fd9bd15f1eae0a1d8eda4e26ab70fd4cd793338\
+                                                  02b54a5deaaf86dc7f03d080c8373d62f03b3be06dac42b2d9426a8ebd0caf4a").unwrap();
+
         let g2 = G2::from_compressed(&public_key).unwrap();
-        assert_eq!(
-            g2.x(),
-            Fq2::new(
-                Fq::from_slice(
-                    &hex::decode(
-                        "270567a05b56b02e813281d554f46ce0c1b742b622652ef5a41d69afb6eb8338"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-                Fq::from_slice(
-                    &hex::decode(
-                        "1bab5671c5107de67fe06007dde240a84674c8ff13eeac6d64bad0caf2cfe53e"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-            )
-        );
-        assert_eq!(
-            g2.y(),
-            Fq2::new(
-                Fq::from_slice(
-                    &hex::decode(
-                        "0142f4e04fc1402e17ae7e624fd9bd15f1eae0a1d8eda4e26ab70fd4cd793338"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-                Fq::from_slice(
-                    &hex::decode(
-                        "02b54a5deaaf86dc7f03d080c8373d62f03b3be06dac42b2d9426a8ebd0caf4a"
-                    )
-                    .unwrap()
-                )
-                .unwrap(),
-            )
-        );
+        let expected_g2 = PublicKey::from_uncompressed(&expected).unwrap();
+        let uncompressed_slice = expected_g2.to_uncompressed().unwrap();
+
+        assert_eq!(uncompressed_slice, expected);
+        assert_eq!(g2, expected_g2.pk);
     }
 
     /// Test for the `hash_to_try_and_increment` function with own test vector
@@ -513,33 +437,6 @@ mod test {
             .hash_to_try_and_increment_g1(&public_key, &data)
             .unwrap();
         let hash_bytes = curve.to_compressed_g1(hash_point).unwrap();
-
-        let expected_hash =
-            hex::decode("021c4beaa17d30dd78c1a822cc75722490aa2292e145a408eea0b66a23486b8dd9")
-                .unwrap();
-        assert_eq!(hash_bytes, expected_hash);
-    }
-
-    /// Test for the `hash_to_try_and_increment` function with own test vector
-    #[test]
-    fn test_hash_to_try_and_increment_g2() {
-        let mut curve = Bn128 {};
-
-        // Public key
-        let secret_key =
-            hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c")
-                .unwrap();
-        let public_key = curve.derive_public_key(&secret_key).unwrap();
-
-        // Data to be hashed with TAI (ASCII "sample")
-        let data = hex::decode("73616d706c65").unwrap();
-
-        println!("---1---");
-        let hash_point = curve.hash_to_try_and_increment_g2(&data).unwrap();
-
-        println!("---2---");
-
-        let hash_bytes = PublicKey { pk: hash_point }.to_compressed().unwrap();
 
         let expected_hash =
             hex::decode("021c4beaa17d30dd78c1a822cc75722490aa2292e145a408eea0b66a23486b8dd9")
