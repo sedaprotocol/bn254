@@ -52,11 +52,11 @@ impl Bn256 {
     /// # Returns
     ///
     /// * If successful, a point in the `G1` group representing the hashed point.
-    fn hash_to_try_and_increment(&self, msg: &[u8]) -> Result<G1, Error> {
+    fn hash_to_try_and_increment(&self, message: &[u8]) -> Result<G1, Error> {
         let mut c = 0..255;
 
         // Add counter suffix
-        let mut v = [&msg[..], &[0x00]].concat();
+        let mut v = [&message[..], &[0x00]].concat();
         let position = v.len() - 1;
 
         // `Hash(cipher||PK||data)`
@@ -125,65 +125,60 @@ impl Bn256 {
 struct PrivateKey(bn::Fr);
 
 /// The public key as point in G2
-struct PublicKey {
-    pk: bn::G2,
-}
+struct PublicKey(bn::G2);
 
 impl PrivateKey {
     /// Function to derive the bn256 public key from the private key.
-    ///
-    /// # Returns
-    ///
-    /// * If successful, a PublicKey instance
     fn derive_public_key(self) -> Result<PublicKey, Error> {
         let PrivateKey(sk) = self;
-        Ok(PublicKey { pk: G2::one() * sk })
+        
+        Ok(PublicKey(G2::one() * sk))
     }
 }
 
 impl PublicKey {
-    pub fn to_u512(&self, point: Fq2) -> arith::U512 {
-        let c0: arith::U256 = (point.real()).into_u256();
-        let c1: arith::U256 = (point.imaginary()).into_u256();
+    /// Function to convert a complex coordinate (`Fq2`) to `U512`.
+    pub fn to_u512(&self, coord: Fq2) -> arith::U512 {
+        let c0: arith::U256 = (coord.real()).into_u256();
+        let c1: arith::U256 = (coord.imaginary()).into_u256();
 
         arith::U512::new(&c1, &c0, &Fq::modulus())
     }
 
+    /// Function to create a `PublicKey` from bytes representing a G2 point in compressed format.
     pub fn from_compressed(bytes: &[u8]) -> Result<Self, Error> {
         let uncompressed = G2::from_compressed(&bytes)?;
-        Ok(PublicKey { pk: uncompressed })
+        Ok(PublicKey(uncompressed))
     }
 
+    /// Function to create a `PublicKey` from bytes representing a G2 point in uncompressed format.
     pub fn from_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() != 128 {
             return Err(Error::InvalidLength {});
         }
-
         let x = Fq2::new(
             Fq::from_slice(&bytes[0..32])?,
             Fq::from_slice(&bytes[32..64])?,
         );
-
         let y = Fq2::new(
             Fq::from_slice(&bytes[64..96])?,
             Fq::from_slice(&bytes[96..128])?,
         );
-
         let pub_key = AffineG2::new(x, y)?;
-        Ok(PublicKey { pk: pub_key.into() })
+        
+        Ok(PublicKey(pub_key.into()))
     }
 
+    /// Function to serialize the `PublicKey` to vector of bytes in compressed format.
     pub fn to_compressed(&self) -> Result<Vec<u8>, Error> {
         let modulus = Fq::modulus();
         // From Jacobian to Affine first!
-        let affine_coords = AffineG2::from_jacobian(self.pk).ok_or(Error::PointInJacobian)?;
+        let affine_coords = AffineG2::from_jacobian(self.0).ok_or(Error::PointInJacobian)?;
 
         // Get X real coordinate
         let x_real = Fq::into_u256(affine_coords.x().real());
-
         // Get X imaginary coordinate
         let x_imaginary = Fq::into_u256(affine_coords.x().imaginary());
-
         // Get Y and get sign
         let y = affine_coords.y();
         let y_neg = -y;
@@ -195,7 +190,6 @@ impl PublicKey {
 
         // To U512 and its compressed representation
         let compressed = arith::U512::new(&x_imaginary, &x_real, &modulus);
-
         // To slice
         let mut buf: [u8; 64] = [0; (4 * 16)];
         for (l, i) in (0..4).rev().zip((0..4).map(|i| i * 16)) {
@@ -206,12 +200,14 @@ impl PublicKey {
         let mut result: Vec<u8> = Vec::new();
         result.push(sign);
         result.append(&mut buf.to_vec());
+
         Ok(result)
     }
 
+    /// Function to serialize the `PublicKey` to vector of bytes in uncompressed format.
     pub fn to_uncompressed(&self) -> Result<Vec<u8>, Error> {
         // From Jacobian to Affine first!
-        let affine_coords = AffineG2::from_jacobian(self.pk).ok_or(Error::PointInJacobian)?;
+        let affine_coords = AffineG2::from_jacobian(self.0).ok_or(Error::PointInJacobian)?;
         let mut result: [u8; 32 * 4] = [0; (4 * 32)];
 
         // Get X real coordinate
@@ -233,22 +229,36 @@ impl PublicKey {
 impl MultiSignature<&[u8], &[u8], &[u8]> for Bn256 {
     type Error = Error;
 
-    // TODO: Add documentation -> public key in G2
+    /// Function to derive public key (point in G2) given a secret key.
+    ///
+    /// # Arguments
+    ///
+    /// * `secret_key` - The secret key bytes
+    ///
+    /// # Returns
+    ///
+    /// * If successful, a vector of bytes with the public key
     fn derive_public_key(&mut self, secret_key: &[u8]) -> Result<Vec<u8>, Error> {
         let scalar = Fr::from_slice(&secret_key[0..32])?;
         let key = PrivateKey(scalar);
         let public = key.derive_public_key()?;
 
-        // Jacobian to Affine
-        //  let affine = AffineG2::from_jacobian(public.pk).ok_or(Error::Unknown)?;
-
         public.to_compressed()
     }
 
-    // TODO: Add documentation -> signature in G1
-    fn sign(&mut self, secret_key: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error> {
+    /// Function to sign a message given a private key (as a point in G1).
+    ///
+    /// # Arguments
+    ///
+    /// * `message`     - The message bytes
+    /// * `secret_key`  - The secret key bytes
+    ///
+    /// # Returns
+    ///
+    /// * If successful, a vector of bytes with the signature
+    fn sign(&mut self, secret_key: &[u8], message: &[u8]) -> Result<Vec<u8>, Self::Error> {
         // 1. Hash_to_try_and_increment --> H(m) as point in G1 (only if it exists)
-        let hash_point = self.hash_to_try_and_increment(&msg)?;
+        let hash_point = self.hash_to_try_and_increment(&message)?;
 
         // 2. Multiply hash_point times secret_key --> Signature in G1
         let sk = Fr::from_slice(&secret_key)?;
@@ -258,16 +268,26 @@ impl MultiSignature<&[u8], &[u8], &[u8]> for Bn256 {
         self.to_compressed_g1(signature)
     }
 
-    // TODO: Add documentation
+    /// Function to verify a signature (point in G1) given a public key (point in G2).
+    ///
+    /// # Arguments
+    ///
+    /// * `signature`   - The signature bytes
+    /// * `message`     - The message to be signed
+    /// * `public_key`  - The public key bytes
+    ///
+    /// # Returns
+    ///
+    /// * If successful, `Ok(())`; otherwise `Error`
     fn verify(
         &mut self,
-        public_key: &[u8],
         signature: &[u8],
-        msg: &[u8],
+        message: &[u8],
+        public_key: &[u8],
     ) -> Result<(), Self::Error> {
         let mut vals = Vec::new();
         // First pairing input: e(H(m), PubKey)
-        let hash_point = self.hash_to_try_and_increment(&msg)?;
+        let hash_point = self.hash_to_try_and_increment(&message)?;
         let public_key_point = G2::from_compressed(&public_key)?;
         vals.push((hash_point, public_key_point));
         // Second pairing input:  e(-Signature,G2::one())
@@ -282,21 +302,35 @@ impl MultiSignature<&[u8], &[u8], &[u8]> for Bn256 {
         }
     }
 
-    // TODO: Add documentation
+    /// Function to aggregate public keys (sum of points in G2).
+    ///
+    /// # Arguments
+    ///
+    /// * `public_keys`  - An array of public key bytes to be aggregated
+    ///
+    /// # Returns
+    ///
+    /// * If successful, a vector of bytes with the aggregated public key
     fn aggregate_public_keys(&mut self, public_keys: &[&[u8]]) -> Result<Vec<u8>, Self::Error> {
         let agg_public_key: Result<G2, Error> =
             public_keys.iter().try_fold(G2::zero(), |acc, &compressed| {
                 let public_key = PublicKey::from_compressed(&compressed)?;
-                Ok(acc + public_key.pk)
+                
+                Ok(acc + public_key.0)
             });
 
-        PublicKey {
-            pk: agg_public_key?,
-        }
-        .to_compressed()
+        PublicKey(agg_public_key?).to_compressed()
     }
 
-    // TODO: Add documentation
+    /// Function to aggregate signatures (sum of points in G1).
+    ///
+    /// # Arguments
+    ///
+    /// * `signatures`  - An array of signature bytes to be aggregated
+    ///
+    /// # Returns
+    ///
+    /// * If successful, a vector of bytes with the aggregated signature
     fn aggregate_signatures(&mut self, signatures: &[&[u8]]) -> Result<Vec<u8>, Self::Error> {
         let agg_signatures: Result<G1, Error> =
             signatures.iter().try_fold(G1::zero(), |acc, &compressed| {
@@ -347,7 +381,7 @@ mod test {
         let uncompressed_slice = expected_g2.to_uncompressed().unwrap();
 
         assert_eq!(uncompressed_slice, expected);
-        assert_eq!(g2, expected_g2.pk);
+        assert_eq!(g2, expected_g2.0);
     }
 
     #[test]
@@ -371,7 +405,7 @@ mod test {
         let uncompressed_slice = expected_g2.to_uncompressed().unwrap();
 
         assert_eq!(uncompressed_slice, expected);
-        assert_eq!(g2, expected_g2.pk);
+        assert_eq!(g2, expected_g2.0);
     }
 
     #[test]
@@ -394,7 +428,7 @@ mod test {
         let uncompressed_slice = expected_g2.to_uncompressed().unwrap();
 
         assert_eq!(uncompressed_slice, expected);
-        assert_eq!(g2, expected_g2.pk);
+        assert_eq!(g2, expected_g2.0);
     }
 
     #[test]
@@ -416,7 +450,7 @@ mod test {
         let uncompressed_slice = expected_g2.to_uncompressed().unwrap();
 
         assert_eq!(uncompressed_slice, expected);
-        assert_eq!(g2, expected_g2.pk);
+        assert_eq!(g2, expected_g2.0);
     }
 
     /// Test for the `hash_to_try_and_increment` function with own test vector
@@ -468,7 +502,7 @@ mod test {
 
         // Verify signature
         assert!(
-            Bn256.verify(&public_key, &signature, &msg).is_ok(),
+            Bn256.verify(&signature, &msg, &public_key).is_ok(),
             "Verification failed"
         );
     }
@@ -477,8 +511,8 @@ mod test {
     #[test]
     fn test_aggregate_public_keys_1() {
         // Public keys
-        let public_key_1 = PublicKey { pk: G2::one() }.to_compressed().unwrap();
-        let public_key_2 = PublicKey { pk: G2::one() }.to_compressed().unwrap();
+        let public_key_1 = PublicKey(G2::one()).to_compressed().unwrap();
+        let public_key_2 = PublicKey(G2::one()).to_compressed().unwrap();
         let public_keys = [&public_key_1[..], &public_key_2[..]];
 
         // Aggregation
@@ -537,17 +571,17 @@ mod test {
 
         // Verification single signatures
         assert!(
-            Bn256.verify(&public_key1, &sign_1, &msg).is_ok(),
+            Bn256.verify(&sign_1, &msg, &public_key1).is_ok(),
             "Signature 1 verification failed"
         );
         assert!(
-            Bn256.verify(&public_key2, &sign_2, &msg).is_ok(),
+            Bn256.verify(&sign_2, &msg, &public_key2).is_ok(),
             "Signature 2 signature verification failed"
         );
 
         // Aggregated signature verification
         assert!(
-            Bn256.verify(&agg_public_key, &agg_signature, &msg).is_ok(),
+            Bn256.verify(&agg_signature, &msg, &agg_public_key).is_ok(),
             "Aggregated signature verification failed"
         );
     }
