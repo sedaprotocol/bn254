@@ -1,15 +1,28 @@
-//! TODO: describe the signature scheme followed + add related references
+//! BLS aggregate signatures with bn256.
 //!
-//! BLS aggregate signatures with curve bn256 (used in Ethereum)
+//! This module has been designed with the goal of being compatible with the bn256Add(G1), bn256ScalarMul(G1) and bn256Pairing provided by Ethereum.
 //!
-//! BLS VERIFICATION: e(H(m), PubKey) = e(Signature, G2::one)
+//! <b>BLS verification</b>: <em>e(H(m), PubKey) = e(Signature, G2::one)</em>
 //!
-//! - add test vectors from https://github.com/ethereum/go-ethereum/blob/7b189d6f1f7eedf46c6607901af291855b81112b/core/vm/contracts_test.go
-//! - hash_to_curve algorithms https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-04#page-37
-//! - BLS IRTF draft https://github.com/cfrg/draft-irtf-cfrg-bls-signature/blob/master/draft-irtf-cfrg-bls-signature-00.txt
+//! This module handles public keys in G2 in order to avoid performing the hashing to G2, which involves a costly multiplication with the cofactor.
 //!
-//! Some sources to fast hash to curve algorithms:
-//! https://gist.github.com/hermanjunge/3308fbd3627033fc8d8ca0dd50809844
+//!<b>Test vectors</b>: the following resources have been used for testing BN256 functionalities
+//! - test vectors from <a href="https://github.com/ethereum/go-ethereum/blob/7b189d6f1f7eedf46c6607901af291855b81112b/core/vm/contracts_test.go">Ethereum</a>
+//! - test vectors from <a href="https://asecuritysite.com/encryption/bn">Asecurity</a>
+//!
+//! <b>Hashing to G1</b>: In order to hash a specific message to G1 this module uses the try and increment algorithm. The running time of this algorithm is dependant on the input message, so it should be used only with public inputs. Alternatively different hashing methods can be implemented as specified in:
+//! - <a href="https://tools.ietf.org/html/draft-irtf-cfrg-hash-to--04#page-37">hash_to_ algorithms</a>
+//!
+//!<b>BLS resources</b>: The following resources have been used as a reference to implement BLS signatures:
+//!
+//! - <a href="https://github.com/cfrg/draft-irtf-cfrg-bls-signature/blob/master/draft-irtf-cfrg-bls-signature-00.txt">BLS IRTF draft</a>
+//! - <a href="https://crypto.stanford.edu/~dabo/pubs/papers/BLSmultisig.html"> BLSmultisig</a>
+//! - <a href="https://medium.com/cryptoadvance/bls-signatures-better-than-schnorr-5a7fe30ea716">bls-signatures-better-than-schnorr</a>
+//!
+//! # Disclaimer
+//!
+//! This module does not implement a defense against Rogue-key attacks, which means it should be used in protocols where the possession of the private key of each individual has been proven (i.e., by signing a message)
+//!
 use crate::MultiSignature;
 
 use bn::{arith, pairing_batch, AffineG1, AffineG2, Fq, Fq2, Fr, Group, Gt, G1, G2};
@@ -20,6 +33,7 @@ use sha2;
 pub mod error;
 use error::Error;
 
+/// BLS multi signatures with curve bn256.
 pub struct Bn256;
 
 impl Bn256 {
@@ -131,7 +145,7 @@ impl PrivateKey {
     /// Function to derive the bn256 public key from the private key.
     fn derive_public_key(self) -> Result<PublicKey, Error> {
         let PrivateKey(sk) = self;
-        
+
         Ok(PublicKey(G2::one() * sk))
     }
 }
@@ -148,6 +162,7 @@ impl PublicKey {
     /// Function to create a `PublicKey` from bytes representing a G2 point in compressed format.
     pub fn from_compressed(bytes: &[u8]) -> Result<Self, Error> {
         let uncompressed = G2::from_compressed(&bytes)?;
+
         Ok(PublicKey(uncompressed))
     }
 
@@ -165,7 +180,7 @@ impl PublicKey {
             Fq::from_slice(&bytes[96..128])?,
         );
         let pub_key = AffineG2::new(x, y)?;
-        
+
         Ok(PublicKey(pub_key.into()))
     }
 
@@ -315,7 +330,7 @@ impl MultiSignature<&[u8], &[u8], &[u8]> for Bn256 {
         let agg_public_key: Result<G2, Error> =
             public_keys.iter().try_fold(G2::zero(), |acc, &compressed| {
                 let public_key = PublicKey::from_compressed(&compressed)?;
-                
+
                 Ok(acc + public_key.0)
             });
 
