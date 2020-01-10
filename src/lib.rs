@@ -1,7 +1,7 @@
-//! TODO: Document BLS aggregate signatures with curve bn128 (used in Ethereum)
-//! TODO: why &mut self
+//! TODO: Document BLS aggregate signatures with curve bn256 (used in Ethereum)
+//! TODO: why &mut self -> because context
 
-mod bn128;
+pub mod bn256;
 
 pub trait BLS<PublicKey, SecretKey, Signature> {
     type Error;

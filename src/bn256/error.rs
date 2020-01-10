@@ -1,3 +1,4 @@
+//! Errors returned by the bn256 library
 use bn::{CurveError, FieldError, GroupError};
 use failure::Fail;
 

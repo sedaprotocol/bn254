@@ -1,11 +1,13 @@
-// TODO: Add documentation considering the below references.
-// - add test vectors from https://github.com/ethereum/go-ethereum/blob/7b189d6f1f7eedf46c6607901af291855b81112b/core/vm/contracts_test.go
-// - hash_to_curve algorithms https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-04#page-37
-// - BLS IRTF draft https://github.com/cfrg/draft-irtf-cfrg-bls-signature/blob/master/draft-irtf-cfrg-bls-signature-00.txt
-//
-// Some sources to fast hash to curve algorithms:
-// https://gist.github.com/hermanjunge/3308fbd3627033fc8d8ca0dd50809844
-
+//! TODO: describe the signature scheme followed + add related references
+//!
+//! BLS VERIFICATION: e(H(m), PubKey) = e(Signature, G2::one)
+//!
+//! - add test vectors from https://github.com/ethereum/go-ethereum/blob/7b189d6f1f7eedf46c6607901af291855b81112b/core/vm/contracts_test.go
+//! - hash_to_curve algorithms https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-04#page-37
+//! - BLS IRTF draft https://github.com/cfrg/draft-irtf-cfrg-bls-signature/blob/master/draft-irtf-cfrg-bls-signature-00.txt
+//!
+//! Some sources to fast hash to curve algorithms:
+//! https://gist.github.com/hermanjunge/3308fbd3627033fc8d8ca0dd50809844
 use crate::BLS;
 
 use bn::{arith, pairing_batch, AffineG1, AffineG2, Fq, Fq2, Fr, Group, Gt, G1, G2};
@@ -13,16 +15,15 @@ use byteorder::{BigEndian, ByteOrder};
 use digest::Digest;
 use sha2;
 
-/// Module containing error definitions
-mod error;
+pub mod error;
 
 use error::Error;
-use std::convert::TryInto;
 
-struct Bn128;
+/// Hola caracola
+pub struct Bn256;
 
-impl Bn128 {
-    /// Function to convert an arbitrary string to a point in the curve G1
+impl Bn256 {
+    /// Function to convert an arbitrary string to a point in the curve G1.
     ///
     /// # Arguments
     ///
@@ -39,45 +40,23 @@ impl Bn128 {
         Ok(point)
     }
 
-    //    /// Function to convert an arbitrary string to a point in the curve G2
-    //    ///
-    //    /// # Arguments
-    //    ///
-    //    /// * `data` - A slice representing the data to be converted to a G2 point.
-    //    ///
-    //    /// # Returns
-    //    ///
-    //    /// * If successful, a `G2` representing the converted point.
-    //    fn arbitrary_string_to_g2(&self, data: &[u8]) -> Result<G2, Error> {
-    //        let mut v = vec![0x0b];
-    //        v.extend(data);
-    //        let point = G2::from_compressed(&v)?;
-    //
-    //        Ok(point)
-    //    }
-
-    /// Function to convert a `Hash(PK|DATA)` to a point in the curve as stated in [VRF-draft-05](https://tools.ietf.org/pdf/draft-irtf-cfrg-vrf-05)
-    /// (section 5.4.1.1).
+    /// Function to convert a `Hash(DATA|COUNTER)` to a point in the curve.
+    /// Similar to [VRF-draft-05](https://tools.ietf.org/pdf/draft-irtf-cfrg-vrf-05) (section 5.4.1.1).
     ///
-    /// Point multiplication by the cofactor is not required for curve `bn128`.
-    /// Since this curve is of prime order, every non-identity point is a generator, therefore the cofactor is 1.
+    /// Point multiplication by the cofactor is not required for curve `bn256` as it has cofactor 1.
     ///
     /// # Arguments
     ///
-    /// * `public_key` - A slice of `[u8]` representing the public key in compressed form.
     /// * `msg` - A slice containing the input data.
     ///
     /// # Returns
     ///
     /// * If successful, a point in the `G1` group representing the hashed point.
-    fn hash_to_try_and_increment_g1(&self, _public_key: &[u8], msg: &[u8]) -> Result<G1, Error> {
+    fn hash_to_try_and_increment(&self, msg: &[u8]) -> Result<G1, Error> {
         let mut c = 0..255;
 
-        // Add prefixes and counter suffix
-        let cipher = [0xFF, 0x01];
-        // TODO: fix prefixes and update removal of PK
-        // let mut v = [&cipher[..], &public_key[..], &msg[..], &[0x00]].concat();
-        let mut v = [&cipher[..], &msg[..], &[0x00]].concat();
+        // Add counter suffix
+        let mut v = [&msg[..], &[0x00]].concat();
         let position = v.len() - 1;
 
         // `Hash(cipher||PK||data)`
@@ -92,7 +71,7 @@ impl Bn128 {
         point.ok_or(Error::HashToPointError)
     }
 
-    /// Function to convert `G1` point into compressed form (`0x02` if Y is even and `0x03` if Y is odd)
+    /// Function to convert `G1` point into compressed form (`0x02` if Y is even and `0x03` if Y is odd).
     ///
     /// # Arguments
     ///
@@ -101,7 +80,7 @@ impl Bn128 {
     /// # Returns
     ///
     /// * If successful, a `Vec<u8>` with the compressed `G1` point.
-    pub fn to_compressed_g1(&self, point: G1) -> Result<Vec<u8>, Error> {
+    fn to_compressed_g1(&self, point: G1) -> Result<Vec<u8>, Error> {
         // From Jacobian to Affine first!
         let affine_coords = AffineG1::from_jacobian(point).ok_or(Error::PointInJacobian)?;
         // Get X coordinate
@@ -123,8 +102,16 @@ impl Bn128 {
         Ok(result)
     }
 
-    /// Calculate the SHA256 hash
-    pub fn calculate_sha256(&self, bytes: &[u8]) -> [u8; 32] {
+    /// Function to get the digest given some input data using SHA256 algorithm.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - A slice containing the input data.
+    ///
+    /// # Returns
+    ///
+    /// * The SHA256 digest as a slice.
+    fn calculate_sha256(&self, bytes: &[u8]) -> [u8; 32] {
         let mut hasher = sha2::Sha256::new();
         hasher.input(&bytes);
         let mut hash = [0; 32];
@@ -134,23 +121,23 @@ impl Bn128 {
     }
 }
 
-pub struct PrivateKey {
-    sk: bn::Fr,
-}
+/// The scalar used as private key
+struct PrivateKey(bn::Fr);
 
-pub struct PublicKey {
+/// The public key as point in G2
+struct PublicKey {
     pk: bn::G2,
 }
 
 impl PrivateKey {
-    pub fn from_sk(sk: &Fr) -> PrivateKey {
-        PrivateKey { sk: *sk }
-    }
-
-    pub fn to_public(&self) -> Result<PublicKey, Error> {
-        Ok(PublicKey {
-            pk: G2::one() * self.sk,
-        })
+    /// Function to derive the bn256 public key from the private key.
+    ///
+    /// # Returns
+    ///
+    /// * If successful, a PublicKey instance
+    fn derive_public_key(self) -> Result<PublicKey, Error> {
+        let PrivateKey(sk) = self;
+        Ok(PublicKey { pk: G2::one() * sk })
     }
 }
 
@@ -168,15 +155,19 @@ impl PublicKey {
     }
 
     pub fn from_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
-
         if bytes.len() != 128 {
-            return Err(Error::InvalidLength {
-            });
+            return Err(Error::InvalidLength {});
         }
 
-        let x = Fq2::new(Fq::from_slice(&bytes[0..32])?, Fq::from_slice(&bytes[32..64])?);
+        let x = Fq2::new(
+            Fq::from_slice(&bytes[0..32])?,
+            Fq::from_slice(&bytes[32..64])?,
+        );
 
-        let y = Fq2::new(Fq::from_slice(&bytes[64..96])?, Fq::from_slice(&bytes[96..128])?);
+        let y = Fq2::new(
+            Fq::from_slice(&bytes[64..96])?,
+            Fq::from_slice(&bytes[96..128])?,
+        );
 
         let pub_key = AffineG2::new(x, y)?;
         Ok(PublicKey { pk: pub_key.into() })
@@ -221,32 +212,32 @@ impl PublicKey {
     pub fn to_uncompressed(&self) -> Result<Vec<u8>, Error> {
         // From Jacobian to Affine first!
         let affine_coords = AffineG2::from_jacobian(self.pk).ok_or(Error::PointInJacobian)?;
-        let mut result: [u8; 32*4] = [0; (4 * 32)];
+        let mut result: [u8; 32 * 4] = [0; (4 * 32)];
 
         // Get X real coordinate
-        Fq::into_u256(affine_coords.x().real()).to_big_endian(&mut result[0..32]);
+        Fq::into_u256(affine_coords.x().real()).to_big_endian(&mut result[0..32])?;
 
         // Get X imaginary coordinate
-        Fq::into_u256(affine_coords.x().imaginary()).to_big_endian(&mut result[32..64]);
+        Fq::into_u256(affine_coords.x().imaginary()).to_big_endian(&mut result[32..64])?;
 
         // Get Y real coordinate
-        Fq::into_u256(affine_coords.y().real()).to_big_endian(&mut result[64..96]);
+        Fq::into_u256(affine_coords.y().real()).to_big_endian(&mut result[64..96])?;
 
         // Get Y imaginary coordinate
-        Fq::into_u256(affine_coords.y().imaginary()).to_big_endian(&mut result[96..128]);
+        Fq::into_u256(affine_coords.y().imaginary()).to_big_endian(&mut result[96..128])?;
 
         Ok(result.to_vec())
     }
 }
 
-impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
+impl BLS<&[u8], &[u8], &[u8]> for Bn256 {
     type Error = Error;
 
     // TODO: Add documentation -> public key in G2
     fn derive_public_key(&mut self, secret_key: &[u8]) -> Result<Vec<u8>, Error> {
         let scalar = Fr::from_slice(&secret_key[0..32])?;
-        let key = PrivateKey::from_sk(&scalar);
-        let public = key.to_public()?;
+        let key = PrivateKey(scalar);
+        let public = key.derive_public_key()?;
 
         // Jacobian to Affine
         //  let affine = AffineG2::from_jacobian(public.pk).ok_or(Error::Unknown)?;
@@ -256,10 +247,8 @@ impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
 
     // TODO: Add documentation -> signature in G1
     fn sign(&mut self, secret_key: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error> {
-        let public_key = self.derive_public_key(&secret_key)?;
-
         // 1. Hash_to_try_and_increment --> H(m) as point in G1 (only if it exists)
-        let hash_point = self.hash_to_try_and_increment_g1(&public_key, &msg)?;
+        let hash_point = self.hash_to_try_and_increment(&msg)?;
 
         // 2. Multiply hash_point times secret_key --> Signature in G1
         let sk = Fr::from_slice(&secret_key)?;
@@ -278,7 +267,7 @@ impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
     ) -> Result<(), Self::Error> {
         let mut vals = Vec::new();
         // First pairing input: e(H(m), PubKey)
-        let hash_point = self.hash_to_try_and_increment_g1(&public_key, &msg)?;
+        let hash_point = self.hash_to_try_and_increment(&msg)?;
         let public_key_point = G2::from_compressed(&public_key)?;
         vals.push((hash_point, public_key_point));
         // Second pairing input:  e(-Signature,G2::one())
@@ -298,13 +287,13 @@ impl BLS<&[u8], &[u8], &[u8]> for Bn128 {
         let agg_public_key: Result<G2, Error> =
             public_keys.iter().try_fold(G2::zero(), |acc, &compressed| {
                 let public_key = PublicKey::from_compressed(&compressed)?;
-            Ok(acc + public_key.pk)
-        });
-        
+                Ok(acc + public_key.pk)
+            });
+
         PublicKey {
             pk: agg_public_key?,
         }
-            .to_compressed()
+        .to_compressed()
     }
 
     // TODO: Add documentation
@@ -343,11 +332,14 @@ mod test {
         let secret_key =
             hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565")
                 .unwrap();
-        let expected = hex::decode("28fe26becbdc0384aa67bf734d08ec78ecc2330f0aa02ad9da00f56c37907f78\
-                                                  2cd080d897822a95a0fb103c54f06e9bf445f82f10fe37efce69ecb59514abc8\
-                                                  237faeb0351a693a45d5d54aa9759f52a71d76edae2132616d6085a9b2228bf9\
-                                                  0f46bd1ef47552c3089604c65a3e7154e3976410be01149b60d5a41a6053e6c2").unwrap();
-        let mut curve = Bn128 {};
+        let expected = hex::decode(
+            "28fe26becbdc0384aa67bf734d08ec78ecc2330f0aa02ad9da00f56c37907f78\
+             2cd080d897822a95a0fb103c54f06e9bf445f82f10fe37efce69ecb59514abc8\
+             237faeb0351a693a45d5d54aa9759f52a71d76edae2132616d6085a9b2228bf9\
+             0f46bd1ef47552c3089604c65a3e7154e3976410be01149b60d5a41a6053e6c2",
+        )
+        .unwrap();
+        let mut curve = Bn256 {};
         let public_key = curve.derive_public_key(&secret_key).unwrap();
         let g2 = G2::from_compressed(&public_key).unwrap();
         let expected_g2 = PublicKey::from_uncompressed(&expected).unwrap();
@@ -363,12 +355,15 @@ mod test {
         let secret_key =
             hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c")
                 .unwrap();
-        let expected = hex::decode("1cd5df38ed2f184b9830bfd3c2175d53c1455352307ead8cbd7c6201202f4aa8\
-                                                  02ce1c4241143cc61d82589c9439c6dd60f81fa6f029625d58bc0f2e25e4ce89\
-                                                  0ba19ae3b5a298b398b3b9d410c7e48c4c8c63a1d6b95b098289fbe1503d00fb\
-                                                  2ec596e93402de0abc73ce741f37ed4984a0b59c96e20df8c9ea1c4e6ec04556").unwrap();
+        let expected = hex::decode(
+            "1cd5df38ed2f184b9830bfd3c2175d53c1455352307ead8cbd7c6201202f4aa8\
+             02ce1c4241143cc61d82589c9439c6dd60f81fa6f029625d58bc0f2e25e4ce89\
+             0ba19ae3b5a298b398b3b9d410c7e48c4c8c63a1d6b95b098289fbe1503d00fb\
+             2ec596e93402de0abc73ce741f37ed4984a0b59c96e20df8c9ea1c4e6ec04556",
+        )
+        .unwrap();
 
-        let mut curve = Bn128 {};
+        let mut curve = Bn256 {};
         let public_key = curve.derive_public_key(&secret_key).unwrap();
         let g2 = G2::from_compressed(&public_key).unwrap();
         let expected_g2 = PublicKey::from_uncompressed(&expected).unwrap();
@@ -384,13 +379,15 @@ mod test {
         let secret_key =
             hex::decode("26fb4d661491b0a623637a2c611e34b6641cdea1743bee94c17b67e5ef14a550")
                 .unwrap();
-        let expected = hex::decode("077dfcf14e940b69bf88fa1ad99b6c7e1a1d6d2cb8813ac53383bf505a17f8ff\
-                                                  2d1a9b04a2c5674373353b5a25591292e69c37c0b84d9ef1c780a57bb98638e6\
-                                                  2dc52f109b333c4125bccf55bc3a839ce57676514405656c79e577e231519273\
-                                                  2410eee842807d9325f22d087fa6bc79d9bbea07f5fa8c345e1e57b28ad54f84").unwrap();
+        let expected = hex::decode(
+            "077dfcf14e940b69bf88fa1ad99b6c7e1a1d6d2cb8813ac53383bf505a17f8ff\
+             2d1a9b04a2c5674373353b5a25591292e69c37c0b84d9ef1c780a57bb98638e6\
+             2dc52f109b333c4125bccf55bc3a839ce57676514405656c79e577e231519273\
+             2410eee842807d9325f22d087fa6bc79d9bbea07f5fa8c345e1e57b28ad54f84",
+        )
+        .unwrap();
 
-        let mut curve = Bn128 {};
-        let public_key = curve.derive_public_key(&secret_key).unwrap();
+        let public_key = Bn256.derive_public_key(&secret_key).unwrap();
         let g2 = G2::from_compressed(&public_key).unwrap();
         let expected_g2 = PublicKey::from_uncompressed(&expected).unwrap();
 
@@ -405,12 +402,14 @@ mod test {
         let secret_key =
             hex::decode("0f6b8785374476a3b3e4bde2c64dfb12964c81c7930d32367c8e318609387872")
                 .unwrap();
-        let mut curve = Bn128 {};
-        let public_key = curve.derive_public_key(&secret_key).unwrap();
-        let expected = hex::decode("270567a05b56b02e813281d554f46ce0c1b742b622652ef5a41d69afb6eb8338\
-                                                  1bab5671c5107de67fe06007dde240a84674c8ff13eeac6d64bad0caf2cfe53e\
-                                                  0142f4e04fc1402e17ae7e624fd9bd15f1eae0a1d8eda4e26ab70fd4cd793338\
-                                                  02b54a5deaaf86dc7f03d080c8373d62f03b3be06dac42b2d9426a8ebd0caf4a").unwrap();
+        let public_key = Bn256.derive_public_key(&secret_key).unwrap();
+        let expected = hex::decode(
+            "270567a05b56b02e813281d554f46ce0c1b742b622652ef5a41d69afb6eb8338\
+             1bab5671c5107de67fe06007dde240a84674c8ff13eeac6d64bad0caf2cfe53e\
+             0142f4e04fc1402e17ae7e624fd9bd15f1eae0a1d8eda4e26ab70fd4cd793338\
+             02b54a5deaaf86dc7f03d080c8373d62f03b3be06dac42b2d9426a8ebd0caf4a",
+        )
+        .unwrap();
 
         let g2 = G2::from_compressed(&public_key).unwrap();
         let expected_g2 = PublicKey::from_uncompressed(&expected).unwrap();
@@ -423,32 +422,18 @@ mod test {
     /// Test for the `hash_to_try_and_increment` function with own test vector
     #[test]
     fn test_hash_to_try_and_increment_1() {
-        let mut curve = Bn128 {};
-
-        // Public key
-        let secret_key =
-            hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c")
-                .unwrap();
-        let public_key = curve.derive_public_key(&secret_key).unwrap();
-
         // Data to be hashed with TAI (ASCII "sample")
         let data = hex::decode("73616d706c65").unwrap();
-        let hash_point = curve
-            .hash_to_try_and_increment_g1(&public_key, &data)
-            .unwrap();
-        let hash_bytes = curve.to_compressed_g1(hash_point).unwrap();
+        let hash_point = Bn256.hash_to_try_and_increment(&data).unwrap();
+        let hash_bytes = Bn256.to_compressed_g1(hash_point).unwrap();
 
-        let expected_hash =
-            hex::decode("021c4beaa17d30dd78c1a822cc75722490aa2292e145a408eea0b66a23486b8dd9")
-                .unwrap();
-        assert_eq!(hash_bytes, expected_hash);
+        let expected_hash = "022f314aad50eb30c15d7e61c0f99874a6aa0d773a5a9f4262b1cda997e3c8da07";
+        assert_eq!(hex::encode(hash_bytes), expected_hash);
     }
 
     /// Test for the `sign`` function with own test vector
     #[test]
     fn test_sign_1() {
-        let mut bn128 = Bn128 {};
-
         // Inputs: secret key and message "sample" in ASCII
         let secret_key =
             hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c")
@@ -456,29 +441,26 @@ mod test {
         let data = hex::decode("73616d706c65").unwrap();
 
         // Sign data with secret key
-        let signature = bn128.sign(&secret_key, &data).unwrap();
+        let signature = Bn256.sign(&secret_key, &data).unwrap();
 
         let expected_signature =
-            hex::decode("02209a2c52479455ebc10f084db453215fc47b0067a76df11677c0ff82c0cb782a")
-                .unwrap();
+            "031a2752fd966c0f24ccaa684aa0c303f430e56cf9e0917d8d2841b2a83488cbba";
 
-        assert_eq!(signature, expected_signature);
+        assert_eq!(hex::encode(signature), expected_signature);
     }
 
     /// Test `verify` function with own signed message
     #[test]
     fn test_verify_signed_msg() {
-        let mut bn128 = Bn128 {};
-
         // Public key
         let secret_key =
             hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c")
                 .unwrap();
-        let public_key = bn128.derive_public_key(&secret_key).unwrap();
+        let public_key = Bn256.derive_public_key(&secret_key).unwrap();
 
         // Signature
         let signature =
-            hex::decode("02209a2c52479455ebc10f084db453215fc47b0067a76df11677c0ff82c0cb782a")
+            hex::decode("031a2752fd966c0f24ccaa684aa0c303f430e56cf9e0917d8d2841b2a83488cbba")
                 .unwrap();
 
         // Message signed
@@ -486,7 +468,7 @@ mod test {
 
         // Verify signature
         assert!(
-            bn128.verify(&public_key, &signature, &msg).is_ok(),
+            Bn256.verify(&public_key, &signature, &msg).is_ok(),
             "Verification failed"
         );
     }
@@ -494,15 +476,13 @@ mod test {
     /// Test `aggregate_public_keys`
     #[test]
     fn test_aggregate_public_keys_1() {
-        let mut bn128 = Bn128 {};
-
         // Public keys
         let public_key_1 = PublicKey { pk: G2::one() }.to_compressed().unwrap();
         let public_key_2 = PublicKey { pk: G2::one() }.to_compressed().unwrap();
         let public_keys = [&public_key_1[..], &public_key_2[..]];
 
         // Aggregation
-        let agg_public_key = bn128.aggregate_public_keys(&public_keys).unwrap();
+        let agg_public_key = Bn256.aggregate_public_keys(&public_keys).unwrap();
 
         // Check
         let expected = hex::decode("0b061848379c6bccd9e821e63ff6932738835b78e1e10079a0866073eba5b8bb444afbb053d16542e2b839477434966e5a9099093b6b3351f84ac19fe28f096548").unwrap();
@@ -512,15 +492,13 @@ mod test {
     /// Test `aggregate_signatures`
     #[test]
     fn test_aggregate_signatures_1() {
-        let mut bn128 = Bn128 {};
-
         // Signatures (as valid points on G1)
-        let sign_1 = bn128.to_compressed_g1(G1::one()).unwrap();
-        let sign_2 = bn128.to_compressed_g1(G1::one()).unwrap();
+        let sign_1 = Bn256.to_compressed_g1(G1::one()).unwrap();
+        let sign_2 = Bn256.to_compressed_g1(G1::one()).unwrap();
         let signatures = [&sign_1[..], &sign_2[..]];
 
         // Aggregation
-        let agg_signature = bn128
+        let agg_signature = Bn256
             .aggregate_signatures(&signatures)
             .expect("Signature aggregation should not fail if G1 points are valid.");
 
@@ -534,8 +512,6 @@ mod test {
     /// Test aggregated signatures verification
     #[test]
     fn test_verify_aggregated_signatures_1() {
-        let mut bn128 = Bn128 {};
-
         // Message
         let msg = hex::decode("73616d706c65").unwrap();
 
@@ -543,35 +519,35 @@ mod test {
         let secret_key1 =
             hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565")
                 .unwrap();
-        let public_key1 = bn128.derive_public_key(&secret_key1).unwrap();
-        let sign_1 = bn128.sign(&secret_key1, &msg).unwrap();
+        let public_key1 = Bn256.derive_public_key(&secret_key1).unwrap();
+        let sign_1 = Bn256.sign(&secret_key1, &msg).unwrap();
 
         // Signature 2
         let secret_key2 =
             hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c")
                 .unwrap();
-        let public_key2 = bn128.derive_public_key(&secret_key2).unwrap();
-        let sign_2 = bn128.sign(&secret_key2, &msg).unwrap();
+        let public_key2 = Bn256.derive_public_key(&secret_key2).unwrap();
+        let sign_2 = Bn256.sign(&secret_key2, &msg).unwrap();
 
         // Public Key and Signature aggregation
-        let agg_public_key = bn128
+        let agg_public_key = Bn256
             .aggregate_public_keys(&[&public_key1, &public_key2])
             .unwrap();
-        let agg_signature = bn128.aggregate_signatures(&[&sign_1, &sign_2]).unwrap();
+        let agg_signature = Bn256.aggregate_signatures(&[&sign_1, &sign_2]).unwrap();
 
         // Verification single signatures
         assert!(
-            bn128.verify(&public_key1, &sign_1, &msg).is_ok(),
+            Bn256.verify(&public_key1, &sign_1, &msg).is_ok(),
             "Signature 1 verification failed"
         );
         assert!(
-            bn128.verify(&public_key2, &sign_2, &msg).is_ok(),
+            Bn256.verify(&public_key2, &sign_2, &msg).is_ok(),
             "Signature 2 signature verification failed"
         );
 
         // Aggregated signature verification
         assert!(
-            bn128.verify(&agg_public_key, &agg_signature, &msg).is_ok(),
+            Bn256.verify(&agg_public_key, &agg_signature, &msg).is_ok(),
             "Aggregated signature verification failed"
         );
     }
