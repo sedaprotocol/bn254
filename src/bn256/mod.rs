@@ -136,10 +136,10 @@ impl Bn256 {
 }
 
 /// The scalar used as private key
-struct PrivateKey(bn::Fr);
+pub struct PrivateKey(bn::Fr);
 
 /// The public key as point in G2
-struct PublicKey(bn::G2);
+pub struct PublicKey(bn::G2);
 
 impl PrivateKey {
     /// Function to derive the bn256 public key from the private key.
