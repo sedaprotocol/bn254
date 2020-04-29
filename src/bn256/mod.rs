@@ -28,7 +28,6 @@ use crate::MultiSignature;
 use bn::{arith, pairing_batch, AffineG1, AffineG2, Fq, Fq2, Fr, Group, Gt, G1, G2};
 use byteorder::{BigEndian, ByteOrder};
 use digest::Digest;
-use sha2;
 
 pub mod error;
 use error::Error;

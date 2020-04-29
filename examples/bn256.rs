@@ -31,6 +31,6 @@ fn main() {
     let agg_sig = Bn256.aggregate_signatures(&[&sig_1, &sig_2]).unwrap();
 
     // Check whether the aggregated signature corresponds to the aggregated public key
-    let beta = Bn256.verify(&agg_sig, &message, &agg_pub_key).unwrap();
+    Bn256.verify(&agg_sig, &message, &agg_pub_key).unwrap();
     println!("Successful verification");
 }
