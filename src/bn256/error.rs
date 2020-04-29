@@ -28,6 +28,8 @@ impl From<CurveError> for Error {
             CurveError::InvalidEncoding => Error::InvalidEncoding,
             CurveError::NotMember => Error::NotMemberError,
             CurveError::Field(field_error) => field_error.into(),
+            // ToAffineConversion happens when using miller_loop_batch, we do not use that
+            CurveError::ToAffineConversion => unimplemented!(),
         }
     }
 }
