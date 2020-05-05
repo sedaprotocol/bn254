@@ -1,10 +1,17 @@
 [package]
 name = "bls-signatures-rs"
 version = "0.1.0"
-authors = ["Mario Cao <mariocao@gmail.com>"]
+description = "Open source implementation of Bonneh-Lynn-Shacham (BLS) signatures written in Rust"
+keywords = ["bls", "Bonneh-Lynn-Shacham", "bn256"]
+categories = ["algorithms", "cryptography"]
+authors = ["Witnet Foundation <info@witnet.foundation>"]
+license = "MIT"
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+homepage = "https://github.com/witnet/bls-signatures-rs"
+documentation = "https://docs.rs/bls-signatures-rs/"
+repository = "https://github.com/witnet/bls-signatures-rs"
+readme = "README.md"
+exclude = ["/.travis.yml"]
 
 [dependencies]
 bn = { git = "https://github.com/paritytech/bn", rev = "635c4cdd560bc0c8b262e6bf809dc709da8bcd7e", default-features = false}
