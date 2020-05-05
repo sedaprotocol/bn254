@@ -1,10 +1,11 @@
 # bls-signatures-rs
-[![](https://img.shields.io/crates/v/bls-signatures-rs.svg)](https://crates.io/crates/bls-signatures-rs) [![](https://docs.rs/bls-signatures-rs/badge.svg)](https://docs.rs/bls-signatures-rs) [![](https://travis-ci.com/witnet/bls-signatures-rs.svg?branch=master)](https://travis-ci.com/witnet/bls-signatures-rs)
 
 `bls-signatures-rs` is an open source implementation of [Bonneh-Lynn-Shacham (BLS) signatures](https://en.wikipedia.org/wiki/Boneh%E2%80%93Lynn%E2%80%93Shacham) written in Rust. At the moment this implementation only supports the BN256 pairing friendly.
 
 _DISCLAIMER_: This is experimental software. Be careful!
-# BN256
+
+## BN256
+
 This module uses the [BN library](https://github.com/paritytech/bn) to perform elliptic curve operations over the appropriate fields. It provides the following functionalities on top of the bn256 library:
 
 * `derive_public_key`: Derive a public key over the bn256 curve given a secret key.
@@ -14,6 +15,7 @@ This module uses the [BN library](https://github.com/paritytech/bn) to perform e
 * `aggregate_signatures`: Aggregate a set of signatures into a single aggregated one.
 
 ## Hashing to G1
+
 The algorithm utilized to hash a given message into a point in G1 is try and increment. We discourage its usage in the cases of hashing secret messages since its running time leaks information about the input.
  In any other cases, where the message to be hashed is public, try and increment should be safe. The hashing algorithm utilized is `sha256`.
 
@@ -57,7 +59,9 @@ fn main() {
     println!("Successful verification");
 }
 ```
+
 ## Adding unsupported curves
+
 This library defines a MultiSignature trait which can be extended in order to use different curves and algorithms.
 
 ```rust
@@ -80,5 +84,7 @@ pub trait MultiSignature<PublicKey, SecretKey, Signature> {
     fn aggregate_signatures(&mut self, public_key: &[Signature]) -> Result<Vec<u8>, Self::Error>;
 }
 ```
+
 ## License
+
 `bls-signatures-rs` is published under the [MIT license](https://github.com/witnet/bls-signatures-rs/blob/master/LICENSE)
