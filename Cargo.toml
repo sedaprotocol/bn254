@@ -14,7 +14,7 @@ readme = "README.md"
 exclude = ["/.travis.yml"]
 
 [dependencies]
-bn = { git = "https://github.com/paritytech/bn", rev = "635c4cdd560bc0c8b262e6bf809dc709da8bcd7e", default-features = false}
+bn = { git = "https://github.com/witnet/bn", rev = "09babf0bcda0a768a54ee16997415f14b3ab58f5" }
 byteorder = "1.3.4"
 digest = "0.8.1"
 failure = "0.1.8"
