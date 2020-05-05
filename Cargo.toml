@@ -14,7 +14,7 @@ readme = "README.md"
 exclude = ["/.travis.yml"]
 
 [dependencies]
-bn = { git = "https://github.com/witnet/bn", rev = "09babf0bcda0a768a54ee16997415f14b3ab58f5" }
+bn = { package = "witnet-bn", version = "0.4.5" }
 byteorder = "1.3.4"
 digest = "0.8.1"
 failure = "0.1.8"
