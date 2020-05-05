@@ -1,4 +1,5 @@
 # bls-signatures-rs
+[![](https://img.shields.io/crates/v/bls-signatures-rs.svg)](https://crates.io/crates/bls-signatures-rs) [![](https://docs.rs/bls-signatures-rs/badge.svg)](https://docs.rs/bls-signatures-rs) [![](https://travis-ci.com/witnet/bls-signatures-rs.svg?branch=master)](https://travis-ci.com/witnet/bls-signatures-rs)
 
 `bls-signatures-rs` is an open source implementation of [Bonneh-Lynn-Shacham (BLS) signatures](https://en.wikipedia.org/wiki/Boneh%E2%80%93Lynn%E2%80%93Shacham) written in Rust. At the moment this implementation only supports the BN256 pairing friendly.
 
