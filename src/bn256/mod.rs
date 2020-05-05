@@ -141,10 +141,8 @@ pub struct PrivateKey(bn::Fr);
 pub struct PublicKey(bn::G2);
 
 impl PrivateKey {
-
     /// Function to derive a private key.
     pub fn new(rng: &[u8]) -> Result<PrivateKey, Error> {
-
         // This function throws an error if the slice does not have a proper length.
         let private_key = Fr::from_slice(&rng)?;
 
@@ -152,14 +150,14 @@ impl PrivateKey {
     }
 
     /// Function to obtain a private key in bytes.
-    pub fn to_bytes(self) -> Result<Vec<u8>, Error> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut result: [u8; 32] = [0; 32];
         // to_big_endian from bn::Fr does not work here.
-        self.0.into_u256().to_big_endian(&mut result);
+        self.0.into_u256().to_big_endian(&mut result)?;
 
         Ok(result.to_vec())
     }
-    
+
     /// Function to derive the bn256 public key from the private key.
     pub fn derive_public_key(self) -> Result<PublicKey, Error> {
         let PrivateKey(sk) = self;
@@ -389,11 +387,12 @@ mod test {
 
     #[test]
     fn test_valid_private_key() {
-        let compressed= hex::decode("023aed31b5a9e486366ea9988b05dba469c6206e58361d9c065bbea7d928204a").unwrap();
+        let compressed =
+            hex::decode("023aed31b5a9e486366ea9988b05dba469c6206e58361d9c065bbea7d928204a")
+                .unwrap();
         let private_key = PrivateKey::new(&compressed.as_slice());
         assert_eq!(private_key.is_err(), false);
         assert_eq!(private_key.unwrap().to_bytes().unwrap(), compressed);
-
     }
 
     #[test]
