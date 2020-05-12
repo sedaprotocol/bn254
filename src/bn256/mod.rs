@@ -25,6 +25,12 @@
 //!
 use crate::MultiSignature;
 
+/// This is 0xf1f5883e65f820d099915c908786b9d3f58714d70a38f4c22ca2bc723a70f263, the last mulitple of the modulus before 2^256
+const LAST_MULTIPLE_OF_FQ_MODULUS_LOWER_THAN_2_256: arith::U256 = arith::U256([
+    0xf587_14d7_0a38_f4c2_2ca2_bc72_3a70_f263,
+    0xf1f5_883e_65f8_20d0_9991_5c90_8786_b9d3,
+]);
+
 use bn::{arith, pairing_batch, AffineG1, AffineG2, Fq, Fq2, Fr, Group, Gt, G1, G2};
 use byteorder::{BigEndian, ByteOrder};
 use digest::Digest;
@@ -34,6 +40,28 @@ use error::Error;
 
 /// BLS multi signatures with curve bn256.
 pub struct Bn256;
+
+/// Function to calculate the modulus of a U256.
+///
+/// # Arguments
+///
+/// * `num` - the number we want to reduce.
+/// * `modulus` - the modulus we want to apply.
+///
+/// # Returns
+///
+/// * If successful, a `U256` representing num % modulus.
+fn mod_u256(num: arith::U256, modulus: arith::U256) -> arith::U256 {
+    let mut reduced = num;
+    // the library does not provide a function to do a modulo reduction
+    // we use the provided add function adding a 0
+    // we also need to iterate here as the library does the modulus only once
+    while reduced > modulus {
+        reduced.add(&arith::U256::zero(), &modulus);
+    }
+
+    reduced
+}
 
 impl Bn256 {
     /// Function to convert an arbitrary string to a point in the curve G1.
@@ -48,6 +76,7 @@ impl Bn256 {
     fn arbitrary_string_to_g1(&self, data: &[u8]) -> Result<G1, Error> {
         let mut v = vec![0x02];
         v.extend(data);
+
         let point = G1::from_compressed(&v)?;
 
         Ok(point)
@@ -69,15 +98,33 @@ impl Bn256 {
         let mut c = 0..255;
 
         // Add counter suffix
+        // This message should be: ciphersuite || 0x01 || message || ctr
+        // For the moment we work with message || ctr until a tag is decided
         let mut v = [&message[..], &[0x00]].concat();
         let position = v.len() - 1;
 
-        // `Hash(cipher||PK||data)`
+        // `Hash(data||ctr)`
+        // The modulus of bn256 is low enough to trigger several iterations of this loop
+        // We instead compute attempted_hash = `Hash(data||ctr)` mod Fq::modulus
+        // This should trigger less iterations of the loop
         let point = c.find_map(|ctr| {
             v[position] = ctr;
-            let attempted_hash = self.calculate_sha256(&v);
-            // Check validity of `H` (i.e. point exists in group G1)
-            self.arbitrary_string_to_g1(&attempted_hash).ok()
+            let hash = &self.calculate_sha256(&v)[0..32];
+            // this should never fail as the length of sha256 is max 256
+            let attempted_hash = arith::U256::from_slice(hash).unwrap();
+
+            // Reducing the hash modulo the field modulus biases point odds
+            // As a prevention, we should discard hashes above the highest multiple of the modulo
+            if attempted_hash >= LAST_MULTIPLE_OF_FQ_MODULUS_LOWER_THAN_2_256 {
+                return None;
+            }
+
+            let module_hash = mod_u256(attempted_hash, Fq::modulus());
+            let mut s = [0u8; 32];
+            module_hash
+                .to_big_endian(&mut s)
+                .ok()
+                .and_then(|_| self.arbitrary_string_to_g1(&s).ok())
         });
 
         // Return error if no valid point was found
@@ -509,6 +556,22 @@ mod test {
         assert_eq!(g2, expected_g2.0);
     }
 
+    /// Test for the `hash_to_try_and_increment` valid range
+    #[test]
+    fn test_hash_to_try_valid_range() {
+        let modulus = Fq::modulus();
+        let mut last_multiple = arith::U256([5, 0]);
+        let mut overflow_multiple = arith::U256([6, 0]);
+        let max_value = arith::U256([
+            0xffffffffffffffffffffffffffffffff,
+            0xffffffffffffffffffffffffffffffff,
+        ]);
+        last_multiple.mul(&modulus, &max_value, 1);
+        assert_eq!(last_multiple, LAST_MULTIPLE_OF_FQ_MODULUS_LOWER_THAN_2_256);
+        overflow_multiple.mul(&modulus, &max_value, 1);
+        assert!(overflow_multiple < modulus)
+    }
+
     /// Test for the `hash_to_try_and_increment` function with own test vector
     #[test]
     fn test_hash_to_try_and_increment_1() {
@@ -517,7 +580,19 @@ mod test {
         let hash_point = Bn256.hash_to_try_and_increment(&data).unwrap();
         let hash_bytes = Bn256.to_compressed_g1(hash_point).unwrap();
 
-        let expected_hash = "022f314aad50eb30c15d7e61c0f99874a6aa0d773a5a9f4262b1cda997e3c8da07";
+        let expected_hash = "0211e028f08c500889891cc294fe758a60e84495ec1e2d0bce208c9fc67b6486fd";
+        assert_eq!(hex::encode(hash_bytes), expected_hash);
+    }
+
+    /// Test for the `hash_to_try_and_increment` function with own test vector
+    #[test]
+    fn test_hash_to_try_and_increment_2() {
+        // Data to be hashed with TAI (ASCII "hello")
+        let data = hex::decode("68656c6c6f").unwrap();
+        let hash_point = Bn256.hash_to_try_and_increment(&data).unwrap();
+        let hash_bytes = Bn256.to_compressed_g1(hash_point).unwrap();
+
+        let expected_hash = "0200b201235f522abbd3863b7496dfa213be0ed1f4c7a22196d8afddec7e64c8ec";
         assert_eq!(hex::encode(hash_bytes), expected_hash);
     }
 
@@ -534,7 +609,7 @@ mod test {
         let signature = Bn256.sign(&secret_key, &data).unwrap();
 
         let expected_signature =
-            "031a2752fd966c0f24ccaa684aa0c303f430e56cf9e0917d8d2841b2a83488cbba";
+            "020f047a153e94b5f109e4013d1bd078112817cf0d58cdf6ba8891f9849852ba5b";
 
         assert_eq!(hex::encode(signature), expected_signature);
     }
@@ -550,7 +625,7 @@ mod test {
 
         // Signature
         let signature =
-            hex::decode("031a2752fd966c0f24ccaa684aa0c303f430e56cf9e0917d8d2841b2a83488cbba")
+            hex::decode("020f047a153e94b5f109e4013d1bd078112817cf0d58cdf6ba8891f9849852ba5b")
                 .unwrap();
 
         // Message signed
