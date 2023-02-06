@@ -33,7 +33,7 @@ const LAST_MULTIPLE_OF_FQ_MODULUS_LOWER_THAN_2_256: arith::U256 = arith::U256([
 
 use bn::{arith, pairing_batch, AffineG1, AffineG2, Fq, Fq2, Fr, Group, Gt, G1, G2};
 use byteorder::{BigEndian, ByteOrder};
-use digest::Digest;
+use sha2::{Digest, Sha256};
 
 pub mod error;
 use error::Error;
@@ -172,12 +172,7 @@ impl Bn256 {
     ///
     /// * The SHA256 digest as a slice.
     fn calculate_sha256(&self, bytes: &[u8]) -> [u8; 32] {
-        let mut hasher = sha2::Sha256::new();
-        hasher.input(&bytes);
-        let mut hash = [0; 32];
-        hash.copy_from_slice(&hasher.result());
-
-        hash
+        Sha256::digest(&bytes).into()
     }
 }
 
