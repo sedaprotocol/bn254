@@ -32,10 +32,10 @@ const LAST_MULTIPLE_OF_FQ_MODULUS_LOWER_THAN_2_256: arith::U256 = arith::U256([
 
 use bn::{arith, pairing_batch, AffineG1, AffineG2, Fq, Fq2, Fr, Group, Gt, G1, G2};
 use byteorder::{BigEndian, ByteOrder};
+use error::Bn254Error;
 use sha2::{Digest, Sha256};
 
 pub mod error;
-use error::Error;
 
 /// BLS multi signatures with curve bn256.
 pub struct Bn256;
@@ -72,7 +72,7 @@ impl Bn256 {
     /// # Returns
     ///
     /// * If successful, a `G1` representing the converted point.
-    fn arbitrary_string_to_g1(&self, data: &[u8]) -> Result<G1, Error> {
+    fn arbitrary_string_to_g1(&self, data: &[u8]) -> Result<G1, Bn254Error> {
         let mut v = vec![0x02];
         v.extend(data);
 
@@ -93,7 +93,7 @@ impl Bn256 {
     /// # Returns
     ///
     /// * If successful, a point in the `G1` group representing the hashed point.
-    fn hash_to_try_and_increment(&self, message: &[u8]) -> Result<G1, Error> {
+    fn hash_to_try_and_increment(&self, message: &[u8]) -> Result<G1, Bn254Error> {
         let mut c = 0..255;
 
         // Add counter suffix
@@ -126,8 +126,8 @@ impl Bn256 {
                 .and_then(|_| self.arbitrary_string_to_g1(&s).ok())
         });
 
-        // Return error if no valid point was found
-        point.ok_or(Error::HashToPointError)
+        // Return Bn254Error if no valid point was found
+        point.ok_or(Bn254Error::HashToPointError)
     }
 
     /// Function to convert `G1` point into compressed form (`0x02` if Y is even and `0x03` if Y is odd).
@@ -139,15 +139,15 @@ impl Bn256 {
     /// # Returns
     ///
     /// * If successful, a `Vec<u8>` with the compressed `G1` point.
-    fn to_compressed_g1(&self, point: G1) -> Result<Vec<u8>, Error> {
+    fn to_compressed_g1(&self, point: G1) -> Result<Vec<u8>, Bn254Error> {
         // From Jacobian to Affine first!
-        let affine_coords = AffineG1::from_jacobian(point).ok_or(Error::PointInJacobian)?;
+        let affine_coords = AffineG1::from_jacobian(point).ok_or(Bn254Error::PointInJacobian)?;
         // Get X coordinate
         let x = Fq::into_u256(affine_coords.x());
         // Get Y coordinate
         let y = Fq::into_u256(affine_coords.y());
         // Get parity of Y
-        let parity = y.get_bit(0).ok_or(Error::IndexOutOfBounds)?;
+        let parity = y.get_bit(0).ok_or(Bn254Error::IndexOutOfBounds)?;
 
         // Take x as big endian into slice
         let mut s = [0u8; 32];
@@ -183,7 +183,7 @@ pub struct PublicKey(bn::G2);
 
 impl PrivateKey {
     /// Function to derive a private key.
-    pub fn new(rng: &[u8]) -> Result<PrivateKey, Error> {
+    pub fn new(rng: &[u8]) -> Result<PrivateKey, Bn254Error> {
         // This function throws an error if the slice does not have a proper length.
         let private_key = Fr::from_slice(&rng)?;
 
@@ -191,7 +191,7 @@ impl PrivateKey {
     }
 
     /// Function to obtain a private key in bytes.
-    pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Bn254Error> {
         let mut result: [u8; 32] = [0; 32];
         // to_big_endian from bn::Fr does not work here.
         self.0.into_u256().to_big_endian(&mut result)?;
@@ -200,7 +200,7 @@ impl PrivateKey {
     }
 
     /// Function to derive the bn256 public key from the private key.
-    pub fn derive_public_key(self) -> Result<PublicKey, Error> {
+    pub fn derive_public_key(self) -> Result<PublicKey, Bn254Error> {
         let PrivateKey(sk) = self;
 
         Ok(PublicKey(G2::one() * sk))
@@ -218,16 +218,16 @@ impl PublicKey {
     }
 
     /// Function to create a `PublicKey` from bytes representing a G2 point in compressed format.
-    pub fn from_compressed(bytes: &[u8]) -> Result<Self, Error> {
+    pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
         let uncompressed = G2::from_compressed(&bytes)?;
 
         Ok(PublicKey(uncompressed))
     }
 
     /// Function to create a `PublicKey` from bytes representing a G2 point in uncompressed format.
-    pub fn from_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
+    pub fn from_uncompressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
         if bytes.len() != 128 {
-            return Err(Error::InvalidLength {});
+            return Err(Bn254Error::InvalidLength {});
         }
         let x = Fq2::new(
             Fq::from_slice(&bytes[0..32])?,
@@ -243,10 +243,10 @@ impl PublicKey {
     }
 
     /// Function to serialize the `PublicKey` to vector of bytes in compressed format.
-    pub fn to_compressed(&self) -> Result<Vec<u8>, Error> {
+    pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
         let modulus = Fq::modulus();
         // From Jacobian to Affine first!
-        let affine_coords = AffineG2::from_jacobian(self.0).ok_or(Error::PointInJacobian)?;
+        let affine_coords = AffineG2::from_jacobian(self.0).ok_or(Bn254Error::PointInJacobian)?;
 
         // Get X real coordinate
         let x_real = Fq::into_u256(affine_coords.x().real());
@@ -278,9 +278,9 @@ impl PublicKey {
     }
 
     /// Function to serialize the `PublicKey` to vector of bytes in uncompressed format.
-    pub fn to_uncompressed(&self) -> Result<Vec<u8>, Error> {
+    pub fn to_uncompressed(&self) -> Result<Vec<u8>, Bn254Error> {
         // From Jacobian to Affine first!
-        let affine_coords = AffineG2::from_jacobian(self.0).ok_or(Error::PointInJacobian)?;
+        let affine_coords = AffineG2::from_jacobian(self.0).ok_or(Bn254Error::PointInJacobian)?;
         let mut result: [u8; 32 * 4] = [0; (4 * 32)];
 
         // Get X real coordinate
@@ -309,7 +309,7 @@ impl Bn256 {
     /// # Returns
     ///
     /// * If successful, a vector of bytes with the public key
-    pub fn derive_public_key(&mut self, secret_key: &[u8]) -> Result<Vec<u8>, Error> {
+    pub fn derive_public_key(&mut self, secret_key: &[u8]) -> Result<Vec<u8>, Bn254Error> {
         let scalar = Fr::from_slice(&secret_key[0..32])?;
         let key = PrivateKey(scalar);
         let public = key.derive_public_key()?;
@@ -327,7 +327,7 @@ impl Bn256 {
     /// # Returns
     ///
     /// * If successful, a vector of bytes with the signature
-    pub fn sign(&mut self, secret_key: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
+    pub fn sign(&mut self, secret_key: &[u8], message: &[u8]) -> Result<Vec<u8>, Bn254Error> {
         // 1. Hash_to_try_and_increment --> H(m) as point in G1 (only if it exists)
         let hash_point = self.hash_to_try_and_increment(&message)?;
 
@@ -355,7 +355,7 @@ impl Bn256 {
         signature: &[u8],
         message: &[u8],
         public_key: &[u8],
-    ) -> Result<(), Error> {
+    ) -> Result<(), Bn254Error> {
         let mut vals = Vec::new();
         // First pairing input: e(H(m), PubKey)
         let hash_point = self.hash_to_try_and_increment(&message)?;
@@ -369,7 +369,7 @@ impl Bn256 {
         if mul == Gt::one() {
             Ok(())
         } else {
-            Err(Error::VerificationFailed)
+            Err(Bn254Error::VerificationFailed)
         }
     }
 
@@ -382,8 +382,8 @@ impl Bn256 {
     /// # Returns
     ///
     /// * If successful, a vector of bytes with the aggregated public key
-    pub fn aggregate_public_keys(&mut self, public_keys: &[&[u8]]) -> Result<Vec<u8>, Error> {
-        let agg_public_key: Result<G2, Error> =
+    pub fn aggregate_public_keys(&mut self, public_keys: &[&[u8]]) -> Result<Vec<u8>, Bn254Error> {
+        let agg_public_key: Result<G2, Bn254Error> =
             public_keys.iter().try_fold(G2::zero(), |acc, &compressed| {
                 let public_key = PublicKey::from_compressed(&compressed)?;
 
@@ -402,8 +402,8 @@ impl Bn256 {
     /// # Returns
     ///
     /// * If successful, a vector of bytes with the aggregated signature
-    pub fn aggregate_signatures(&mut self, signatures: &[&[u8]]) -> Result<Vec<u8>, Error> {
-        let agg_signatures: Result<G1, Error> =
+    pub fn aggregate_signatures(&mut self, signatures: &[&[u8]]) -> Result<Vec<u8>, Bn254Error> {
+        let agg_signatures: Result<G1, Bn254Error> =
             signatures.iter().try_fold(G1::zero(), |acc, &compressed| {
                 let signature = G1::from_compressed(&compressed)?;
 

@@ -1,58 +1,58 @@
 //! Errors returned by the bn256 library
 use bn::{CurveError, FieldError, GroupError};
-use failure::Fail;
+use thiserror::Error;
 
-#[derive(Debug, Fail)]
-pub enum Error {
-    #[fail(display = "Failed to find a valid point while converting hash to point")]
+#[derive(Error, Debug)]
+pub enum Bn254Error {
+    #[error("errored to find a valid point while converting hash to point")]
     HashToPointError,
-    #[fail(display = "Failed to get data from an index out of bounds")]
+    #[error("errored to get data from an index out of bounds")]
     IndexOutOfBounds,
-    #[fail(display = "Failed to create group or field due to invalid input encoding")]
+    #[error("errored to create group or field due to invalid input encoding")]
     InvalidEncoding,
-    #[fail(display = "Failed to map point to a curve")]
+    #[error("errored to map point to a curve")]
     InvalidGroupPoint,
-    #[fail(display = "Failed to create group or field due to invalid input length")]
+    #[error("errored to create group or field due to invalid input length")]
     InvalidLength,
-    #[fail(display = "Failed to create a field element")]
+    #[error("errored to create a field element")]
     NotMemberError,
-    #[fail(display = "Failed to convert to affine coordinates")]
+    #[error("errored to convert to affine coordinates")]
     ToAffineConversion,
-    #[fail(display = "Point was already in affine coordinates (division-by-zero)")]
+    #[error("Point was already in affine coordinates (division-by-zero)")]
     PointInJacobian,
-    #[fail(display = "BLS verification failed")]
+    #[error("Bn254 verification failed")]
     VerificationFailed,
 }
 
-impl From<CurveError> for Error {
+impl From<CurveError> for Bn254Error {
     fn from(error: CurveError) -> Self {
         match error {
-            CurveError::InvalidEncoding => Error::InvalidEncoding,
-            CurveError::NotMember => Error::NotMemberError,
+            CurveError::InvalidEncoding => Bn254Error::InvalidEncoding,
+            CurveError::NotMember => Bn254Error::NotMemberError,
             CurveError::Field(field_error) => field_error.into(),
-            CurveError::ToAffineConversion => Error::ToAffineConversion,
+            CurveError::ToAffineConversion => Bn254Error::ToAffineConversion,
         }
     }
 }
 
-impl From<FieldError> for Error {
+impl From<FieldError> for Bn254Error {
     fn from(error: FieldError) -> Self {
         match error {
-            FieldError::NotMember => Error::NotMemberError,
-            FieldError::InvalidSliceLength => Error::InvalidLength,
-            FieldError::InvalidU512Encoding => Error::InvalidEncoding,
+            FieldError::NotMember => Bn254Error::NotMemberError,
+            FieldError::InvalidSliceLength => Bn254Error::InvalidLength,
+            FieldError::InvalidU512Encoding => Bn254Error::InvalidEncoding,
         }
     }
 }
 
-impl From<GroupError> for Error {
+impl From<GroupError> for Bn254Error {
     fn from(_error: GroupError) -> Self {
-        Error::InvalidGroupPoint
+        Bn254Error::InvalidGroupPoint
     }
 }
 
-impl From<bn::arith::Error> for Error {
+impl From<bn::arith::Error> for Bn254Error {
     fn from(_error: bn::arith::Error) -> Self {
-        Error::InvalidLength
+        Bn254Error::InvalidLength
     }
 }
