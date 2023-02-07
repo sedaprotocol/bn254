@@ -1,4 +1,4 @@
-use bls_signatures_rs::Bn256;
+use bn254::Bn256;
 
 fn main() {
     // Inputs: Secret Key, Public Key (derived) & Message

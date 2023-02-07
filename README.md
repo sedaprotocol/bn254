@@ -1,13 +1,18 @@
-# bls-signatures-rs
-[![](https://img.shields.io/crates/v/bls-signatures-rs.svg)](https://crates.io/crates/bls-signatures-rs) [![](https://docs.rs/bls-signatures-rs/badge.svg)](https://docs.rs/bls-signatures-rs) [![](https://travis-ci.com/witnet/bls-signatures-rs.svg?branch=master)](https://travis-ci.com/witnet/bls-signatures-rs)
+# bn254
+[![](https://img.shields.io/crates/v/bn254.svg)](https://crates.io/crates/bn254) [![](https://docs.rs/bn254/badge.svg)](https://docs.rs/bn254)
 
-`bls-signatures-rs` is an open source implementation of [Bonneh-Lynn-Shacham (BLS) signatures](https://en.wikipedia.org/wiki/Boneh%E2%80%93Lynn%E2%80%93Shacham) written in Rust. At the moment this implementation only supports the BN256 pairing friendly.
+`bn254` is an open source Rust implementation of aggregate signatures over the pairing friendly elliptic curve BN254 ([Barreto-Naehrig (BN)](https://www.cryptojedi.org/papers/pfcpo.pdf)).
+
+The name `bn254` stands for the number of bits in the prime associated to the base field.
+The bits of security of `bn254` dropped from 128 to around 100 after new algorithms of [Kim-Barbulescu](https://eprint.iacr.org/2015/1027.pdf).
+
+This curve is also known as `bn128` (or `alt-bn128`) referred to the bits of security.
 
 _DISCLAIMER_: This is experimental software. Be careful!
 
-## BN256
+## Usage
 
-This module uses the [BN library](https://github.com/paritytech/bn) to perform elliptic curve operations over the appropriate fields. It provides the following functionalities on top of the bn256 library:
+This module uses the [substrate-bn](https://github.com/paritytech/bn) library to perform elliptic curve operations over the appropriate fields. It provides the following functionalities on top of the bn256 library:
 
 * `derive_public_key`: Derive a public key over the bn256 curve given a secret key.
 * `sign`: Sign a message given a secret key.
@@ -25,8 +30,7 @@ The algorithm utilized to hash a given message into a point in G1 is try and inc
 Sign, aggregate and verify by using the BN256 curve:
 
 ```rust
-use bls_signatures_rs::MultiSignature;
-use bls_signatures_rs::bn256::Bn256;
+use bn254::Bn256;
 
 fn main() {
     // Inputs: Secret Key, Public Key (derived) & Message
@@ -88,4 +92,4 @@ pub trait MultiSignature<PublicKey, SecretKey, Signature> {
 
 ## License
 
-`bls-signatures-rs` is published under the [MIT license](https://github.com/witnet/bls-signatures-rs/blob/master/LICENSE)
+`bn254` is published under the [MIT license](https://github.com/sedaprotocol/bn254/blob/main/LICENSE.md)

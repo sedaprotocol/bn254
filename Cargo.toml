@@ -1,17 +1,16 @@
 [package]
-name = "bls-signatures-rs"
+name = "bn254"
 version = "0.1.0"
-description = "Open source implementation of Bonneh-Lynn-Shacham (BLS) signatures written in Rust"
-keywords = ["bls", "Bonneh-Lynn-Shacham", "bn256"]
+description = "Open source implementation of Barreto-Naehrig (BN) aggregate signatures written in Rust"
+keywords = ["bn254", "Barreto-Naehrig", "bn256", "alt-bn128", "bn128", "bls"]
 categories = ["algorithms", "cryptography"]
-authors = ["Witnet Foundation <info@witnet.foundation>"]
+
 license = "MIT"
-edition = "2018"
-homepage = "https://github.com/witnet/bls-signatures-rs"
-documentation = "https://docs.rs/bls-signatures-rs/"
-repository = "https://github.com/witnet/bls-signatures-rs"
+edition = "2021"
+homepage = "https://github.com/sedaprotocol/bn254"
+documentation = "https://docs.rs/bn254/"
+repository = "https://github.com/sedaprotocol/bn254"
 readme = "README.md"
-exclude = ["/.travis.yml"]
 
 [dependencies]
 bn = { package = "substrate-bn", version = "0.6.0" }
