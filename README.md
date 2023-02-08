@@ -6,19 +6,18 @@
 The name `bn254` stands for the number of bits in the prime associated to the base field.
 The bits of security of `bn254` dropped from 128 to around 100 after new algorithms of [Kim-Barbulescu](https://eprint.iacr.org/2015/1027.pdf).
 
-This curve is also known as `bn128` (or `alt-bn128`) referred to the bits of security.
+This curve is also known as `bn256` or `bn128` (`alt-bn128`) referred to the bits of security.
 
 _DISCLAIMER_: This is experimental software. Be careful!
 
 ## Usage
 
-This module uses the [substrate-bn](https://github.com/paritytech/bn) library to perform elliptic curve operations over the appropriate fields. It provides the following functionalities on top of the bn256 library:
+This module uses the [substrate-bn](https://github.com/paritytech/bn) library to perform elliptic curve operations over the appropriate fields. It provides the following functionalities:
 
-* `derive_public_key`: Derive a public key over the bn256 curve given a secret key.
 * `sign`: Sign a message given a secret key.
 * `verify`: Given a public key, a signature and a message it verifies whether the signature is valid.
-* `aggregate_public_keys`: Aggregate a set of public keys into a single aggregated one.
-* `aggregate_signatures`: Aggregate a set of signatures into a single aggregated one.
+
+Signature and public aggregation can be done directly by using the `+` operator.
 
 ## Hashing to G1
 
@@ -30,63 +29,39 @@ The algorithm utilized to hash a given message into a point in G1 is try and inc
 Sign, aggregate and verify by using the BN256 curve:
 
 ```rust
-use bn254::Bn256;
+use bn254::{PrivateKey, PublicKey, ECDSA};
 
 fn main() {
     // Inputs: Secret Key, Public Key (derived) & Message
 
     // Secret key one
-    let secret_key_1 =
-        hex::decode("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721").unwrap();
+    let private_key_1_bytes = hex::decode("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721").unwrap();
+    let private_key_1 = PrivateKey::try_from(private_key_1_bytes.as_ref()).unwrap();
 
     // Secret key two
-    let secret_key_2 =
-        hex::decode("a55e93edb1350916bf5beea1b13d8f198ef410033445bcb645b65be5432722f1").unwrap();
+    let private_key_2_bytes = hex::decode("a55e93edb1350916bf5beea1b13d8f198ef410033445bcb645b65be5432722f1").unwrap();
+    let private_key_2 = PrivateKey::try_from(private_key_2_bytes.as_ref()).unwrap();
 
     // Derive public keys from secret key
-    let public_key_1 = Bn256.derive_public_key(&secret_key_1).unwrap();
-    let public_key_2 = Bn256.derive_public_key(&secret_key_2).unwrap();
+    let public_key_1 = PublicKey::from_private_key(&private_key_1);
+    let public_key_2 = PublicKey::from_private_key(&private_key_2);
 
     let message: &[u8] = b"sample";
 
     // Sign identical message with two different secret keys
-    let sig_1 = Bn256.sign(&secret_key_1, &message).unwrap();
-    let sig_2 = Bn256.sign(&secret_key_2, &message).unwrap();
+    let signature_1 = ECDSA::sign(&message, &private_key_1).unwrap();
+    let signature_2 = ECDSA::sign(&message, &private_key_2).unwrap();
 
     // Aggregate public keys
-    let agg_pub_key = Bn256.aggregate_public_keys(&[&public_key_1, &public_key_2]).unwrap();
+    let aggregate_pub_key = public_key_1 + public_key_2;
 
     // Aggregate signatures
-    let agg_sig = Bn256.aggregate_signatures(&[&sig_1, &sig_2]).unwrap();
+    let aggregate_sig = signature_1 + signature_2;
 
-    // Check whether the aggregated signature corresponds to the aggregated public key
-    let beta = Bn256.verify(&agg_sig, &message, &agg_pub_key).unwrap();
-    println!("Successful verification");
-}
-```
-
-## Adding unsupported curves
-
-This library defines a MultiSignature trait which can be extended in order to use different curves and algorithms.
-
-```rust
-pub trait MultiSignature<PublicKey, SecretKey, Signature> {
-    type Error;
-
-    fn derive_public_key(&mut self, secret_key: SecretKey) -> Result<Vec<u8>, Self::Error>;
-
-    fn sign(&mut self, secret_key: SecretKey, message: &[u8]) -> Result<Vec<u8>, Self::Error>;
-
-    fn verify(
-           &mut self,
-           signature: Signature,
-           message: &[u8],
-           public_key: PublicKey,
-     ) -> Result<(), Self::Error>;
-
-    fn aggregate_public_keys(&mut self, public_key: &[PublicKey]) -> Result<Vec<u8>, Self::Error>;
-
-    fn aggregate_signatures(&mut self, public_key: &[Signature]) -> Result<Vec<u8>, Self::Error>;
+    // Check whether the aggregate signature corresponds to the aggregated
+    // public_key
+    ECDSA::verify(&message, &aggregate_sig, &aggregate_pub_key).unwrap();
+    println!("Successful aggregate signature verification");
 }
 ```
 
