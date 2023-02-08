@@ -131,7 +131,6 @@ impl PublicKeyG1 {
     }
 }
 
-
 impl Into<bn::G1> for PublicKeyG1 {
     fn into(self) -> bn::G1 {
         self.0

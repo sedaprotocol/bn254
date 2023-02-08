@@ -1,4 +1,5 @@
 use super::*;
+use crate::ecdsa::check_public_keys;
 
 /// Test for the `sign`` function with own test vector
 #[test]
@@ -77,4 +78,38 @@ fn test_verify_aggregate_signatures() {
         ECDSA::verify(&msg, &agg_signature, &agg_public_key).is_ok(),
         "Aggregated signature verification failed"
     );
+}
+
+/// Test if PubKey in G1 -> PubKey in G2: e(G1, P2) = e(P1, G2)
+#[test]
+fn test_verify_valid_public_keys_in_g1_g2() {
+    let private_key_bytes = hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
+    let private_key = PrivateKey::try_from(private_key_bytes.as_ref()).unwrap();
+
+    // Get public keys in G1 and G2
+    let public_g2 = PublicKey::from_private_key(&private_key);
+    let public_g1 = PublicKeyG1::from_private_key(&private_key);
+
+    // Check if valid
+    assert!(
+        check_public_keys(&public_g2, &public_g1).is_ok(),
+        "Public Key in G1 DOES NOT correspond to Public Key in G2"
+    );
+}
+
+/// Test (false-positive) if PubKey in G1 -> PubKey in G2: e(G1, P2) = e(P1, G2)
+#[test]
+fn test_verify_invalid_public_keys_in_g1_g2() {
+    // Get public keys in G1 and G2 (from different private keys)
+    let private_key_1_bytes = hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
+    let private_key_1 = PrivateKey::try_from(private_key_1_bytes.as_ref()).unwrap();
+    let public_g2 = PublicKey::from_private_key(&private_key_1);
+
+    let private_key_2_bytes = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
+    let private_key_2 = PrivateKey::new(private_key_2_bytes.as_ref()).unwrap();
+    let public_g1 = PublicKeyG1::from_private_key(&private_key_2);
+
+    // Check if valid
+    let result = check_public_keys(&public_g2, &public_g1);
+    assert!(matches!(result, Err(Bn254Error::VerificationFailed)));
 }

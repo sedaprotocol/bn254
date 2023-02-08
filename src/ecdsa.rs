@@ -1,6 +1,6 @@
 use bn::{pairing_batch, Group, Gt, G2};
 
-use crate::{error::Bn254Error, hash, PrivateKey, PublicKey, Signature};
+use crate::{error::Bn254Error, hash, PrivateKey, PublicKey, PublicKeyG1, Signature};
 
 /// ECDSA with curve `bn254`.
 pub struct ECDSA;
@@ -40,18 +40,46 @@ impl ECDSA {
     ///
     /// * If successful, `Ok(())`; otherwise `Error`
     pub fn verify(message: &[u8], signature: &Signature, public_key: &PublicKey) -> Result<(), Bn254Error> {
+        // Pairing batch with one negated point
         let mut vals = Vec::new();
         // First pairing input: e(H(m), PubKey)
         let hash_point = hash::hash_to_try_and_increment(&message)?;
         vals.push((hash_point, public_key.into()));
         // Second pairing input:  e(-Signature,G2::one())
         vals.push((signature.into(), -G2::one()));
-        // Pairing batch with one negated point
         let mul = pairing_batch(&vals);
+
         if mul == Gt::one() {
             Ok(())
         } else {
             Err(Bn254Error::VerificationFailed)
         }
+    }
+}
+
+/// Function to check if 2 Public Keys in G1 and G2 are valid
+///
+/// # Arguments
+///
+/// * `message`     - The message to be signed
+/// * `signature`   - The signature
+/// * `public_key`  - The public key
+///
+/// # Returns
+///
+/// * If successful, `Ok(())`; otherwise `Error`
+pub fn check_public_keys(public_key_g2: &PublicKey, public_key_g1: &PublicKeyG1) -> Result<(), Bn254Error> {
+    // Pairing batch with one negated point
+    let mut vals = Vec::new();
+    // First pairing input: e(H(m), PubKey)
+    vals.push((bn::G1::one(), public_key_g2.into()));
+    // Second pairing input:  e(PubKey_G1, G2::one())
+    vals.push((public_key_g1.into(), -G2::one()));
+    let mul = pairing_batch(&vals);
+
+    if mul == Gt::one() {
+        Ok(())
+    } else {
+        Err(Bn254Error::VerificationFailed)
     }
 }
