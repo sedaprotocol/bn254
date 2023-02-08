@@ -59,13 +59,13 @@ impl ECDSA {
     ///
     /// # Arguments
     ///
+    /// * `message` ß    - The message bytes
     /// * `private_key` - The private key
-    /// * `message`     - The message bytes
     ///
     /// # Returns
     ///
     /// * If successful, the signature as a G1 point
-    pub fn sign(private_key: &PrivateKey, message: &[u8]) -> Result<Signature, Bn254Error> {
+    pub fn sign(message: &[u8], private_key: &PrivateKey) -> Result<Signature, Bn254Error> {
         // 1. Hash_to_try_and_increment --> H(m) as point in G1 (only if it exists)
         let hash_point = hash::hash_to_try_and_increment(&message)?;
 
@@ -81,14 +81,14 @@ impl ECDSA {
     ///
     /// # Arguments
     ///
-    /// * `signature`   - The signature
     /// * `message`     - The message to be signed
+    /// * `signature`   - The signature
     /// * `public_key`  - The public key
     ///
     /// # Returns
     ///
     /// * If successful, `Ok(())`; otherwise `Error`
-    pub fn verify(signature: &Signature, message: &[u8], public_key: &PublicKey) -> Result<(), Bn254Error> {
+    pub fn verify(message: &[u8], signature: &Signature, public_key: &PublicKey) -> Result<(), Bn254Error> {
         let mut vals = Vec::new();
         // First pairing input: e(H(m), PubKey)
         let hash_point = hash::hash_to_try_and_increment(&message)?;
@@ -121,7 +121,7 @@ mod test {
         let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
 
         // Sign data with private key
-        let signature = ECDSA::sign(&private_key, &data).unwrap();
+        let signature = ECDSA::sign(&data, &private_key).unwrap();
 
         let expected_signature = "020f047a153e94b5f109e4013d1bd078112817cf0d58cdf6ba8891f9849852ba5b";
         assert_eq!(hex::encode(signature.to_compressed().unwrap()), expected_signature);
@@ -144,7 +144,7 @@ mod test {
 
         // Verify signature
         assert!(
-            ECDSA::verify(&signature, &msg, &public_key).is_ok(),
+            ECDSA::verify(&msg, &signature, &public_key).is_ok(),
             "Verification failed"
         );
     }

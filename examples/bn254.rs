@@ -18,8 +18,8 @@ fn main() {
     let message: &[u8] = b"sample";
 
     // Sign identical message with two different secret keys
-    let signature_1 = ECDSA::sign(&private_key_1, &message).unwrap();
-    let signature_2 = ECDSA::sign(&private_key_2, &message).unwrap();
+    let signature_1 = ECDSA::sign(&message, &private_key_1).unwrap();
+    let signature_2 = ECDSA::sign(&message, &private_key_2).unwrap();
 
     // Aggregate public keys
     let aggregate_pub_key = public_key_1 + public_key_2;
@@ -29,6 +29,6 @@ fn main() {
 
     // Check whether the aggregate signature corresponds to the aggregated
     // public_key
-    ECDSA::verify(&aggregate_sig, &message, &aggregate_pub_key).unwrap();
+    ECDSA::verify(&message, &aggregate_sig, &aggregate_pub_key).unwrap();
     println!("Successful aggregate signature verification");
 }
