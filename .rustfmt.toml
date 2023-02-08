@@ -1,0 +1,19 @@
+# Stable Rustfmt Flags
+edition = "2021"
+max_width = 120
+merge_derives = true
+newline_style = "Unix"
+use_field_init_shorthand = true
+
+# Unstable Rustfmt Flags
+condense_wildcard_suffixes = true
+enum_discrim_align_threshold = 120
+error_on_unformatted = true
+format_macro_matchers = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"
+imports_layout = "HorizontalVertical"
+reorder_impl_items = true
+struct_field_align_threshold = 120
+version = "Two"
+wrap_comments = true

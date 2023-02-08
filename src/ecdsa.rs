@@ -10,7 +10,7 @@ impl ECDSA {
     ///
     /// # Arguments
     ///
-    /// * `message` ß    - The message bytes
+    /// * `message`     - The message bytes
     /// * `private_key` - The private key
     ///
     /// # Returns
