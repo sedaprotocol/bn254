@@ -42,7 +42,7 @@ pub(crate) fn to_u512(coord: Fq2) -> arith::U512 {
 /// # Returns
 ///
 /// * If successful, a `G1` representing the converted point.
-pub(crate) fn arbitrary_string_to_g1(data: &[u8]) -> Result<G1, Bn254Error> {
+pub(crate) fn arbitrary_string_to_g1(data: &[u8; 32]) -> Result<G1, Bn254Error> {
     let mut v = vec![0x02];
     v.extend(data);
 

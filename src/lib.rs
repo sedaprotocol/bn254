@@ -1,9 +1,12 @@
-//! BLS aggregate signatures with bn256.
+//! Elliptic Curve Digital Signature Algorithm (ECDSA) using the `bn254` curve,
+//! also known as `bn128` or `bn256`.
 //!
 //! This module has been designed with the goal of being compatible with the
-//! bn256Add(G1), bn256ScalarMul(G1) and bn256Pairing provided by Ethereum.
+//! bn256Add(G1), bn256ScalarMul(G1) and bn256Pairing provided by precompiled
+//! contracts on the Ethereum Virtual Machine (EVM).
 //!
-//! <b>BLS verification</b>: <em>e(H(m), PubKey) = e(Signature, G2::one)</em>
+//! <b>Signature verification</b>: <em>e(H(m), PubKey) = e(Signature,
+//! G2::one)</em>
 //!
 //! This module handles public keys in G2 in order to avoid performing the
 //! hashing to G2, which involves a costly multiplication with the cofactor.
@@ -20,8 +23,8 @@
 //! specified in:
 //! - <a href="https://tools.ietf.org/html/draft-irtf-cfrg-hash-to--04#page-37">hash_to_ algorithms</a>
 //!
-//!<b>BLS resources</b>: The following resources have been used as a reference
-//! to implement BLS signatures:
+//!<b>Resources</b>: The following resources have been used as a reference
+//! to implement aggregate signatures:
 //!
 //! - <a href="https://github.com/cfrg/draft-irtf-cfrg-bls-signature/blob/master/draft-irtf-cfrg-bls-signature-00.txt">BLS IRTF draft</a>
 //! - <a href="https://crypto.stanford.edu/~dabo/pubs/papers/BLSmultisig.html">
@@ -32,7 +35,7 @@
 //!
 //! This module does not implement a defense against Rogue-key attacks, which
 //! means it should be used in protocols where the possession of the private key
-//! of each individual has been proven (i.e., by signing a message)
+//! of each individual has been proven (i.e., by signing a message).
 
 use bn::{pairing_batch, Group, Gt, G2};
 use error::Bn254Error;
@@ -48,42 +51,25 @@ mod utils;
 
 pub use types::{PrivateKey, PublicKey, Signature};
 
-/// Multi signatures with curve bn254.
+/// Multi signatures with curve `bn254`.
 pub struct ECDSA;
 
 impl ECDSA {
-    // /// Function to derive public key (point in G2) given a secret key.
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `secret_key` - The secret key bytes
-    // ///
-    // /// # Returns
-    // ///
-    // /// * If successful, a vector of bytes with the public key
-    // pub fn derive_public_key(&mut self, secret_key: &[u8]) -> Result<Vec<u8>,
-    // Bn254Error> {     let scalar = Fr::from_slice(&secret_key[0..32])?;
-    //     let key = PrivateKey(scalar);
-    //     let public = PublicKey::from_private_key(key);
-
-    //     public.to_compressed()
-    // }
-
     /// Function to sign a message given a private key (as a point in G1).
     ///
     /// # Arguments
     ///
+    /// * `private_key` - The private key
     /// * `message`     - The message bytes
-    /// * `secret_key`  - The secret key bytes
     ///
     /// # Returns
     ///
-    /// * If successful, the signature in G1
-    pub fn sign(&mut self, private_key: &PrivateKey, message: &[u8]) -> Result<Signature, Bn254Error> {
+    /// * If successful, the signature as a G1 point
+    pub fn sign(private_key: &PrivateKey, message: &[u8]) -> Result<Signature, Bn254Error> {
         // 1. Hash_to_try_and_increment --> H(m) as point in G1 (only if it exists)
         let hash_point = hash::hash_to_try_and_increment(&message)?;
 
-        // 2. Multiply hash_point times secret_key --> Signature in G1
+        // 2. Multiply hash_point times private_key --> Signature in G1
         let g1_point = hash_point * private_key.into();
 
         // 3. Return signature
@@ -95,14 +81,14 @@ impl ECDSA {
     ///
     /// # Arguments
     ///
-    /// * `signature`   - The signature bytes
+    /// * `signature`   - The signature
     /// * `message`     - The message to be signed
-    /// * `public_key`  - The public key bytes
+    /// * `public_key`  - The public key
     ///
     /// # Returns
     ///
     /// * If successful, `Ok(())`; otherwise `Error`
-    pub fn verify(&mut self, signature: &Signature, message: &[u8], public_key: &PublicKey) -> Result<(), Bn254Error> {
+    pub fn verify(signature: &Signature, message: &[u8], public_key: &PublicKey) -> Result<(), Bn254Error> {
         let mut vals = Vec::new();
         // First pairing input: e(H(m), PubKey)
         let hash_point = hash::hash_to_try_and_increment(&message)?;
@@ -117,46 +103,6 @@ impl ECDSA {
             Err(Bn254Error::VerificationFailed)
         }
     }
-
-    // /// Function to aggregate public keys (sum of points in G2).
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `public_keys`  - An array of public key bytes to be aggregated
-    // ///
-    // /// # Returns
-    // ///
-    // /// * If successful, a vector of bytes with the aggregated public key
-    // pub fn aggregate_public_keys(&mut self, public_keys: &[&[u8]]) ->
-    // Result<Vec<u8>, Bn254Error> {     let agg_public_key: Result<G2,
-    // Bn254Error> = public_keys.iter().try_fold(G2::zero(), |acc, &compressed| {
-    //         let public_key = PublicKey::from_compressed(&compressed)?;
-
-    //         Ok(acc + public_key.0)
-    //     });
-
-    //     PublicKey(agg_public_key?).to_compressed()
-    // }
-
-    // /// Function to aggregate signatures (sum of points in G1).
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `signatures`  - An array of signature bytes to be aggregated
-    // ///
-    // /// # Returns
-    // ///
-    // /// * If successful, a vector of bytes with the aggregated signature
-    // pub fn aggregate_signatures(&mut self, signatures: &[&[u8]]) ->
-    // Result<Vec<u8>, Bn254Error> {     let agg_signatures: Result<G1,
-    // Bn254Error> = signatures.iter().try_fold(G1::zero(), |acc, &compressed| {
-    //         let signature = G1::from_compressed(&compressed)?;
-
-    //         Ok(acc + signature)
-    //     });
-
-    //     utils::to_compressed_g1(agg_signatures?)
-    // }
 }
 
 #[cfg(test)]
@@ -168,14 +114,14 @@ mod test {
     /// Test for the `sign`` function with own test vector
     #[test]
     fn test_sign_1() {
-        // Inputs: secret key and message "sample" in ASCII
-        let secret_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
+        // Inputs: private key and message "sample" in ASCII
+        let private_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
         let data = hex::decode("73616d706c65").unwrap();
 
-        let private_key = PrivateKey::try_from(secret_key.as_ref()).unwrap();
+        let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
 
-        // Sign data with secret key
-        let signature = ECDSA.sign(&private_key, &data).unwrap();
+        // Sign data with private key
+        let signature = ECDSA::sign(&private_key, &data).unwrap();
 
         let expected_signature = "020f047a153e94b5f109e4013d1bd078112817cf0d58cdf6ba8891f9849852ba5b";
         assert_eq!(hex::encode(signature.to_compressed().unwrap()), expected_signature);
@@ -185,9 +131,9 @@ mod test {
     #[test]
     fn test_verify_signed_msg() {
         // Public key
-        let secret_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
-        let private_key = PrivateKey::try_from(secret_key.as_ref()).unwrap();
-        let public_key = PublicKey::from_private_key(private_key);
+        let private_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
+        let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
+        let public_key = PublicKey::from_private_key(&private_key);
 
         // Signature
         let signature_vec = hex::decode("020f047a153e94b5f109e4013d1bd078112817cf0d58cdf6ba8891f9849852ba5b").unwrap();
@@ -198,7 +144,7 @@ mod test {
 
         // Verify signature
         assert!(
-            ECDSA.verify(&signature, &msg, &public_key).is_ok(),
+            ECDSA::verify(&signature, &msg, &public_key).is_ok(),
             "Verification failed"
         );
     }

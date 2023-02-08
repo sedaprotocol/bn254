@@ -10,19 +10,6 @@ const LAST_MULTIPLE_OF_FQ_MODULUS_LOWER_THAN_2_256: arith::U256 = arith::U256([
     0xf1f5_883e_65f8_20d0_9991_5c90_8786_b9d3,
 ]);
 
-/// Function to get the digest given some input data using SHA256 algorithm.
-///
-/// # Arguments
-///
-/// * `data` - A slice containing the input data.
-///
-/// # Returns
-///
-/// * The SHA256 digest as a slice.
-fn calculate_sha256(bytes: &[u8]) -> [u8; 32] {
-    Sha256::digest(&bytes).into()
-}
-
 /// Function to convert a `Hash(DATA|COUNTER)` to a point in the curve.
 /// Similar to [VRF-draft-05](https://tools.ietf.org/pdf/draft-irtf-cfrg-vrf-05) (section 5.4.1.1).
 ///
@@ -51,7 +38,7 @@ pub(crate) fn hash_to_try_and_increment(message: &[u8]) -> Result<G1, Bn254Error
     // This should trigger less iterations of the loop
     let point = c.find_map(|ctr| {
         v[position] = ctr;
-        let hash = calculate_sha256(&v);
+        let hash = Sha256::digest(&v);
         // this should never fail as the length of sha256 is max 256
         let attempted_hash = arith::U256::from_slice(&hash).unwrap();
 

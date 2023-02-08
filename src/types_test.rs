@@ -1,10 +1,12 @@
-// Test vectors taken from https://asecuritysite.com/encryption/go_bn256. The public keys in G2 are changed in order in the website, i.e., imaginary goes first.
-// In order to construct the test vectors we need to do the following
-// Get the modulus of Fq
-// Get the components (real, imaginary) of x and y
-// perform (imaginary*modulus) +  real
-// Compress with 0x0a or 0x0b depending on the value of y
-
+/// Test vectors taken from https://asecuritysite.com/encryption/go_bn256.
+/// The public keys in G2 are changed in order in the website, i.e., imaginary
+/// goes first.
+///
+/// In order to construct the test vectors we need to do the following:
+/// - Get the modulus of Fq
+/// - Get the components (real, imaginary) of x and y
+/// - Perform (imaginary*modulus) + real
+/// - Compress with 0x0a or 0x0b depending on the value of y
 use super::*;
 
 #[test]
@@ -57,7 +59,7 @@ fn test_uncompressed_public_key() {
 
 #[test]
 fn test_to_public_key_1() {
-    let secret_key = hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
+    let private_key = hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
     let expected = hex::decode(
         "28fe26becbdc0384aa67bf734d08ec78ecc2330f0aa02ad9da00f56c37907f78\
              2cd080d897822a95a0fb103c54f06e9bf445f82f10fe37efce69ecb59514abc8\
@@ -66,15 +68,14 @@ fn test_to_public_key_1() {
     )
     .unwrap();
     let expected_public_key = PublicKey::from_uncompressed(&expected).unwrap();
-
-    let private_key = PrivateKey::try_from(secret_key.as_ref()).unwrap();
-    let public_key = PublicKey::from_private_key(private_key);
+    let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
+    let public_key = PublicKey::from_private_key(&private_key);
     assert_eq!(public_key.0, expected_public_key.0);
 }
 
 #[test]
 fn test_to_public_key_2() {
-    let secret_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
+    let private_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
     let expected = hex::decode(
         "1cd5df38ed2f184b9830bfd3c2175d53c1455352307ead8cbd7c6201202f4aa8\
              02ce1c4241143cc61d82589c9439c6dd60f81fa6f029625d58bc0f2e25e4ce89\
@@ -82,17 +83,15 @@ fn test_to_public_key_2() {
              2ec596e93402de0abc73ce741f37ed4984a0b59c96e20df8c9ea1c4e6ec04556",
     )
     .unwrap();
-
     let expected_public_key = PublicKey::from_uncompressed(&expected).unwrap();
-
-    let private_key = PrivateKey::try_from(secret_key.as_ref()).unwrap();
-    let public_key = PublicKey::from_private_key(private_key);
+    let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
+    let public_key = PublicKey::from_private_key(&private_key);
     assert_eq!(public_key.0, expected_public_key.0);
 }
 
 #[test]
 fn test_to_public_key_3() {
-    let secret_key = hex::decode("26fb4d661491b0a623637a2c611e34b6641cdea1743bee94c17b67e5ef14a550").unwrap();
+    let private_key = hex::decode("26fb4d661491b0a623637a2c611e34b6641cdea1743bee94c17b67e5ef14a550").unwrap();
     let expected = hex::decode(
         "077dfcf14e940b69bf88fa1ad99b6c7e1a1d6d2cb8813ac53383bf505a17f8ff\
              2d1a9b04a2c5674373353b5a25591292e69c37c0b84d9ef1c780a57bb98638e6\
@@ -100,17 +99,15 @@ fn test_to_public_key_3() {
              2410eee842807d9325f22d087fa6bc79d9bbea07f5fa8c345e1e57b28ad54f84",
     )
     .unwrap();
-
     let expected_public_key = PublicKey::from_uncompressed(&expected).unwrap();
-
-    let private_key = PrivateKey::try_from(secret_key.as_ref()).unwrap();
-    let public_key = PublicKey::from_private_key(private_key);
+    let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
+    let public_key = PublicKey::from_private_key(&private_key);
     assert_eq!(public_key.0, expected_public_key.0);
 }
 
 #[test]
 fn test_to_public_key_4() {
-    let secret_key = hex::decode("0f6b8785374476a3b3e4bde2c64dfb12964c81c7930d32367c8e318609387872").unwrap();
+    let private_key = hex::decode("0f6b8785374476a3b3e4bde2c64dfb12964c81c7930d32367c8e318609387872").unwrap();
     let expected = hex::decode(
         "270567a05b56b02e813281d554f46ce0c1b742b622652ef5a41d69afb6eb8338\
              1bab5671c5107de67fe06007dde240a84674c8ff13eeac6d64bad0caf2cfe53e\
@@ -118,11 +115,9 @@ fn test_to_public_key_4() {
              02b54a5deaaf86dc7f03d080c8373d62f03b3be06dac42b2d9426a8ebd0caf4a",
     )
     .unwrap();
-
     let expected_public_key = PublicKey::from_uncompressed(&expected).unwrap();
-
-    let private_key = PrivateKey::try_from(secret_key.as_ref()).unwrap();
-    let public_key = PublicKey::from_private_key(private_key);
+    let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
+    let public_key = PublicKey::from_private_key(&private_key);
     assert_eq!(public_key.0, expected_public_key.0);
 }
 

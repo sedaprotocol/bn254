@@ -4,7 +4,7 @@ use bn::{Fr, Group, G1, G2};
 
 use crate::{error::Bn254Error, utils};
 
-/// The scalar used as private key
+/// The Private Key as an element of `Fr`
 pub struct PrivateKey(bn::Fr);
 
 impl TryFrom<&[u8]> for PrivateKey {
@@ -42,12 +42,13 @@ impl PrivateKey {
     }
 }
 
+/// The Public Key as a point in G2
 #[derive(Copy, Clone, Debug)]
 pub struct PublicKey(pub bn::G2);
 
 impl PublicKey {
-    /// Function to derive the bn256 public key from the private key.
-    pub fn from_private_key(private_key: PrivateKey) -> Self {
+    /// Function to derive the `bn254` public key from the private key.
+    pub fn from_private_key(private_key: &PrivateKey) -> Self {
         PublicKey(G2::one() * private_key.into())
     }
 
@@ -96,10 +97,11 @@ impl Into<bn::G2> for &PublicKey {
     }
 }
 
+/// The Public Key as a point in G1
 pub struct PublicKeyG1(pub bn::G1);
 
 impl PublicKeyG1 {
-    /// Function to derive the bn256 public key from the private key.
+    /// Function to derive the `bn254` public key from the private key.
     pub fn from_private_key(private_key: PrivateKey) -> Self {
         PublicKeyG1(G1::one() * private_key.into())
     }
@@ -113,6 +115,7 @@ impl PublicKeyG1 {
     }
 }
 
+/// The Signature as a point in G1
 #[derive(Copy, Clone, Debug)]
 pub struct Signature(pub bn::G1);
 
