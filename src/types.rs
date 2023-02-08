@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Neg, Sub};
 
 use bn::{Fr, Group, G1, G2};
 
@@ -77,14 +77,6 @@ impl PublicKey {
     }
 }
 
-impl Add for PublicKey {
-    type Output = Self;
-
-    fn add(self, other: Self) -> Self::Output {
-        PublicKey(self.0.add(other.0))
-    }
-}
-
 impl Into<bn::G2> for PublicKey {
     fn into(self) -> bn::G2 {
         self.0
@@ -97,23 +89,47 @@ impl Into<bn::G2> for &PublicKey {
     }
 }
 
-/// The Public Key as a point in G1
-pub struct PublicKeyG1(pub bn::G1);
+impl Add for PublicKey {
+    type Output = Self;
 
-impl PublicKeyG1 {
-    /// Function to derive the `bn254` public key from the private key.
-    pub fn from_private_key(private_key: PrivateKey) -> Self {
-        PublicKeyG1(G1::one() * private_key.into())
-    }
-
-    pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
-        utils::g1_to_compressed(self.0)
-    }
-
-    pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        Ok(PublicKeyG1(G1::from_compressed(&bytes)?))
+    fn add(self, other: Self) -> Self::Output {
+        Self(self.0.add(other.0))
     }
 }
+
+impl Sub for PublicKey {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self(self.0 - other.0)
+    }
+}
+
+impl Neg for PublicKey {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Self(-self.0)
+    }
+}
+
+// /// The Public Key as a point in G1
+// pub struct PublicKeyG1(pub bn::G1);
+
+// impl PublicKeyG1 {
+//     /// Function to derive the `bn254` public key from the private key.
+//     pub fn from_private_key(private_key: PrivateKey) -> Self {
+//         PublicKeyG1(G1::one() * private_key.into())
+//     }
+
+//     pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
+//         utils::g1_to_compressed(self.0)
+//     }
+
+//     pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
+//         Ok(PublicKeyG1(G1::from_compressed(&bytes)?))
+//     }
+// }
 
 /// The Signature as a point in G1
 #[derive(Copy, Clone, Debug)]
@@ -147,6 +163,22 @@ impl Add for Signature {
     type Output = Self;
 
     fn add(self, other: Self) -> Self::Output {
-        Signature(self.0.add(other.0))
+        Self(self.0.add(other.0))
+    }
+}
+
+impl Sub for Signature {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self(self.0 - other.0)
+    }
+}
+
+impl Neg for Signature {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Self(-self.0)
     }
 }

@@ -38,20 +38,18 @@
 //! of each individual has been proven (i.e., by signing a message).
 
 mod ecdsa;
+mod error;
+mod hash;
+mod types;
+mod utils;
+
 #[cfg(test)]
 mod ecdsa_test;
-
-pub mod error;
-
-mod hash;
 #[cfg(test)]
 mod hash_test;
-
-mod types;
 #[cfg(test)]
 mod types_test;
 
-mod utils;
-
 pub use ecdsa::ECDSA;
-pub use types::{PrivateKey, PublicKey, PublicKeyG1, Signature};
+pub use error::Bn254Error;
+pub use types::{PrivateKey, PublicKey, Signature};
