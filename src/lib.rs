@@ -34,25 +34,19 @@
 //! means it should be used in protocols where the possession of the private key
 //! of each individual has been proven (i.e., by signing a message)
 
-use bn::{pairing_batch, Fr, Group, Gt, G1, G2};
+use bn::{pairing_batch, Group, Gt, G2};
 use error::Bn254Error;
 
 pub mod error;
-pub mod keys;
+pub mod types;
+
+#[cfg(test)]
+mod types_test;
 
 mod hash;
 mod utils;
 
-pub use keys::{PrivateKey, PublicKey};
-
-#[derive(Copy, Clone, Debug)]
-pub struct Signature(bn::G1);
-
-impl Signature {
-    pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
-        utils::to_compressed_g1(self.0)
-    }
-}
+pub use types::{PrivateKey, PublicKey, Signature};
 
 /// Multi signatures with curve bn254.
 pub struct ECDSA;
@@ -167,7 +161,7 @@ impl ECDSA {
 
 #[cfg(test)]
 mod test {
-    pub use keys::{PrivateKey, PublicKey};
+    pub use types::{PrivateKey, PublicKey};
 
     use super::*;
 

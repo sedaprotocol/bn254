@@ -1,162 +1,11 @@
-use std::ops::Add;
-
-use bn::{arith, AffineG2, Fq, Fq2, Fr, Group, G1, G2};
-use byteorder::{BigEndian, ByteOrder};
-
-use crate::{error::Bn254Error, utils};
-
-/// The scalar used as private key
-pub struct PrivateKey(bn::Fr);
-
-impl TryFrom<&[u8]> for PrivateKey {
-    type Error = Bn254Error;
-
-    fn try_from(secret_key: &[u8]) -> Result<Self, Self::Error> {
-        Ok(PrivateKey(Fr::from_slice(&secret_key[0..32])?))
-    }
-}
-
-impl Into<bn::Fr> for PrivateKey {
-    fn into(self) -> bn::Fr {
-        self.0
-    }
-}
-
-/// The public key as point in G2
-#[derive(Copy, Clone, Debug)]
-pub struct PublicKey(pub bn::G2);
-
-impl Add for PublicKey {
-    type Output = Self;
-
-    fn add(self, other: Self) -> Self::Output {
-        PublicKey(self.0.add(other.0))
-    }
-}
-
-/// The public key as point in G1
-pub struct PublicKeyG1(pub bn::G1);
-
-impl PublicKey {
-    /// Function to derive the bn256 public key from the private key.
-    pub fn from_private_key(private_key: PrivateKey) -> Self {
-        PublicKey(G2::one() * private_key.into())
-    }
-}
-
-impl PublicKeyG1 {
-    /// Function to derive the bn256 public key from the private key.
-    pub fn from_private_key(private_key: PrivateKey) -> Self {
-        PublicKeyG1(G1::one() * private_key.into())
-    }
-}
-
-impl PrivateKey {
-    /// Function to derive a private key.
-    pub fn new(rng: &[u8]) -> Result<PrivateKey, Bn254Error> {
-        // This function throws an error if the slice does not have a proper length.
-        let private_key = Fr::from_slice(&rng)?;
-
-        Ok(PrivateKey(private_key))
-    }
-
-    /// Function to obtain a private key in bytes.
-    pub fn to_bytes(&self) -> Result<Vec<u8>, Bn254Error> {
-        let mut result: [u8; 32] = [0; 32];
-        // to_big_endian from bn::Fr does not work here.
-        self.0.into_u256().to_big_endian(&mut result)?;
-
-        Ok(result.to_vec())
-    }
-}
-
-impl PublicKey {
-    /// Function to create a `PublicKey` from bytes representing a G2 point in
-    /// compressed format.
-    pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        let uncompressed = G2::from_compressed(&bytes)?;
-
-        Ok(PublicKey(uncompressed))
-    }
-
-    /// Function to create a `PublicKey` from bytes representing a G2 point in
-    /// uncompressed format.
-    pub fn from_uncompressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        if bytes.len() != 128 {
-            return Err(Bn254Error::InvalidLength {});
-        }
-        let x = Fq2::new(Fq::from_slice(&bytes[0..32])?, Fq::from_slice(&bytes[32..64])?);
-        let y = Fq2::new(Fq::from_slice(&bytes[64..96])?, Fq::from_slice(&bytes[96..128])?);
-        let pub_key = AffineG2::new(x, y)?;
-
-        Ok(PublicKey(pub_key.into()))
-    }
-
-    /// Function to serialize the `PublicKey` to vector of bytes in compressed
-    /// format.
-    pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
-        let modulus = Fq::modulus();
-        // From Jacobian to Affine first!
-        let affine_coords = AffineG2::from_jacobian(self.0).ok_or(Bn254Error::PointInJacobian)?;
-
-        // Get X real coordinate
-        let x_real = Fq::into_u256(affine_coords.x().real());
-        // Get X imaginary coordinate
-        let x_imaginary = Fq::into_u256(affine_coords.x().imaginary());
-        // Get Y and get sign
-        let y = affine_coords.y();
-        let y_neg = -y;
-        let sign: u8 = if utils::to_u512(y) > utils::to_u512(y_neg) {
-            0x0b
-        } else {
-            0x0a
-        };
-
-        // To U512 and its compressed representation
-        let compressed = arith::U512::new(&x_imaginary, &x_real, &modulus);
-        // To slice
-        let mut buf: [u8; 64] = [0; (4 * 16)];
-        for (l, i) in (0..4).rev().zip((0..4).map(|i| i * 16)) {
-            BigEndian::write_u128(&mut buf[i..], compressed.0[l]);
-        }
-
-        // Result = sign || compressed
-        let mut result: Vec<u8> = Vec::new();
-        result.push(sign);
-        result.append(&mut buf.to_vec());
-
-        Ok(result)
-    }
-
-    /// Function to serialize the `PublicKey` to vector of bytes in uncompressed
-    /// format.
-    pub fn to_uncompressed(&self) -> Result<Vec<u8>, Bn254Error> {
-        // From Jacobian to Affine first!
-        let affine_coords = AffineG2::from_jacobian(self.0).ok_or(Bn254Error::PointInJacobian)?;
-        let mut result: [u8; 32 * 4] = [0; (4 * 32)];
-
-        // Get X real coordinate
-        Fq::into_u256(affine_coords.x().real()).to_big_endian(&mut result[0..32])?;
-
-        // Get X imaginary coordinate
-        Fq::into_u256(affine_coords.x().imaginary()).to_big_endian(&mut result[32..64])?;
-
-        // Get Y real coordinate
-        Fq::into_u256(affine_coords.y().real()).to_big_endian(&mut result[64..96])?;
-
-        // Get Y imaginary coordinate
-        Fq::into_u256(affine_coords.y().imaginary()).to_big_endian(&mut result[96..128])?;
-
-        Ok(result.to_vec())
-    }
-}
-
 // Test vectors taken from https://asecuritysite.com/encryption/go_bn256. The public keys in G2 are changed in order in the website, i.e., imaginary goes first.
 // In order to construct the test vectors we need to do the following
 // Get the modulus of Fq
 // Get the components (real, imaginary) of x and y
 // perform (imaginary*modulus) +  real
 // Compress with 0x0a or 0x0b depending on the value of y
+
+use super::*;
 
 #[test]
 fn test_valid_private_key() {
@@ -291,3 +140,145 @@ fn test_aggregate_public_keys_1() {
     let expected = hex::decode("0b061848379c6bccd9e821e63ff6932738835b78e1e10079a0866073eba5b8bb444afbb053d16542e2b839477434966e5a9099093b6b3351f84ac19fe28f096548").unwrap();
     assert_eq!(agg_public_key.to_compressed().unwrap(), expected);
 }
+
+// /// Test `aggregate_signatures`
+// #[test]
+// fn test_aggregate_signatures_1() {
+//     // Signatures (as valid points on G1)
+//     let sign_1 = utils::to_compressed_g1(G1::one()).unwrap();
+//     let sign_2 = utils::to_compressed_g1(G1::one()).unwrap();
+//     let signatures = [&sign_1[..], &sign_2[..]];
+
+//     // Aggregation
+//     let agg_signature = Bn256
+//         .aggregate_signatures(&signatures)
+//         .expect("Signature aggregation should not fail if G1 points are
+// valid.");
+
+//     // Check
+//     let expected =
+// hex::decode("
+// 02030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3").
+// unwrap();     assert_eq!(agg_signature, expected);
+// }
+
+// /// Test aggregated signatures verification
+// #[test]
+// fn test_verify_aggregated_signatures_1() {
+//     // Message
+//     let msg = hex::decode("73616d706c65").unwrap();
+
+//     // Signature 1
+//     let secret_key1 =
+// hex::decode("
+// 1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
+
+//     let private_key1 = PrivateKey::try_from(secret_key1.as_ref()).unwrap();
+//     let public_key1 = PublicKey::from_private_key(private_key1);
+//     let sign_1 = Bn256.sign(&secret_key1, &msg).unwrap();
+
+//     // Signature 2
+//     let secret_key2 =
+// hex::decode("
+// 2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
+//     let private_key2 = PrivateKey::try_from(secret_key2.as_ref()).unwrap();
+//     let public_key2 = PublicKey::from_private_key(private_key2);
+//     let sign_2 = Bn256.sign(&secret_key2, &msg).unwrap();
+
+//     // Public Key and Signature aggregation
+//     let agg_public_key = public_key1 + public_key2;
+//     let agg_signature = Bn256.aggregate_signatures(&[&sign_1,
+// &sign_2]).unwrap();
+
+//     // Verification single signatures
+//     assert!(
+//         Bn256
+//             .verify(&sign_1, &msg, &public_key1.to_compressed().unwrap())
+//             .is_ok(),
+//         "Signature 1 verification failed"
+//     );
+//     assert!(
+//         Bn256
+//             .verify(&sign_2, &msg, &public_key2.to_compressed().unwrap())
+//             .is_ok(),
+//         "Signature 2 signature verification failed"
+//     );
+
+//     // Aggregated signature verification
+//     assert!(
+//         Bn256
+//             .verify(&agg_signature, &msg,
+// &agg_public_key.to_compressed().unwrap())             .is_ok(),
+//         "Aggregated signature verification failed"
+//     );
+// }
+
+// /// Test PubKey in G1 -> PubKey in G2
+// /// e(G1, P2) = e(P1, G2)
+// #[test]
+// fn test_verify_pk1_pk2() {
+//     let secret_key =
+//         hex::decode("
+// 1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565")
+//             .unwrap();
+//     let scalar2 = Fr::from_slice(&secret_key[0..32]).unwrap();
+//     let key2 = PrivateKey(scalar2);
+//     let public_g2 = key2.derive_public_key_g2().unwrap();
+
+//     let scalar1 = Fr::from_slice(&secret_key[0..32]).unwrap();
+//     let key1 = PrivateKey(scalar1);
+//     let public_g1 = key1.derive_public_key_g1().unwrap();
+
+//     let mut vals = Vec::new();
+//     // First pairing input: e(G1::one(), PubKey_G2)
+//     // let hash_point = self.hash_to_try_and_increment(&message)?;
+//     // let public_key_point = G2::from_compressed(&public_key)?;
+//     vals.push((G1::one(), public_g2));
+//     // Second pairing input:  e(PubKey_G1, G2::one())
+//     // let signature_point = G1::from_compressed(&signature)?;
+//     vals.push((public_g1, -G2::one()));
+//     // Pairing batch with one negated point
+//     let mul = pairing_batch(&vals);
+
+//     assert!(
+//         mul == Gt::one(),
+//         "Publikey Key in G1 DOES NOT correspondond to PubKey in G2"
+//     )
+// }
+
+// /// Test PubKey in G1 -> PubKey in G2
+// /// e(G1, P2) = e(P1, G2)
+// #[test]
+// fn test_verify_invalid_pk1_pk2() {
+//     let secret_key1 =
+//         hex::decode("
+// 1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565")
+//             .unwrap();
+//     let scalar2 = Fr::from_slice(&secret_key1[0..32]).unwrap();
+//     let key2 = PrivateKey(scalar2);
+//     let public_g2 = key2.derive_public_key_g2().unwrap();
+
+//     let secret_key2 =
+//         hex::decode("
+// 1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525566")
+//             .unwrap();
+//     let scalar1 = Fr::from_slice(&secret_key2[0..32]).unwrap();
+//     let key1 = PrivateKey(scalar1);
+//     let public_g1 = key1.derive_public_key_g1().unwrap();
+
+//     let mut vals = Vec::new();
+//     // First pairing input: e(G1::one(), PubKey_G2)
+//     // let hash_point = self.hash_to_try_and_increment(&message)?;
+//     // let public_key_point = G2::from_compressed(&public_key)?;
+//     vals.push((G1::one(), public_g2));
+//     // Second pairing input:  e(PubKey_G1, G2::one())
+//     // let signature_point = G1::from_compressed(&signature)?;
+//     vals.push((public_g1, -G2::one()));
+//     // Pairing batch with one negated point
+//     let mul = pairing_batch(&vals);
+
+//     assert!(
+//         mul != Gt::one(),
+//         "Publikey Key in G1 DOES correspondond to PubKey in G2"
+//     )
+// }
