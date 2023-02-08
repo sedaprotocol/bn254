@@ -17,7 +17,7 @@ This module uses the [substrate-bn](https://github.com/paritytech/bn) library to
 * `sign`: Sign a message given a secret key.
 * `verify`: Given a public key, a signature and a message it verifies whether the signature is valid.
 
-Signature and public aggregation can be done directly by using the `+` operator.
+Signature and public aggregation can be done directly by using the `+` or `-` operator.
 
 ## Hashing to G1
 

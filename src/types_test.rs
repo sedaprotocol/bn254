@@ -14,7 +14,7 @@ use super::*;
 #[test]
 fn test_valid_private_key() {
     let compressed = hex::decode("023aed31b5a9e486366ea9988b05dba469c6206e58361d9c065bbea7d928204a").unwrap();
-    let private_key = PrivateKey::new(&compressed.as_slice());
+    let private_key = PrivateKey::random(&compressed.as_slice());
     assert_eq!(private_key.is_err(), false);
     assert_eq!(private_key.unwrap().to_bytes().unwrap(), compressed);
 }
@@ -25,14 +25,14 @@ fn test_invalid_private_key_1() {
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     )
     .unwrap();
-    let private_key = PrivateKey::new(&compressed.as_slice());
+    let private_key = PrivateKey::random(&compressed.as_slice());
     assert_eq!(private_key.is_err(), true);
 }
 
 #[test]
 fn test_invalid_private_key_2() {
     let compressed = hex::decode("aaaa").unwrap();
-    let private_key = PrivateKey::new(&compressed.as_slice());
+    let private_key = PrivateKey::random(&compressed.as_slice());
     assert_eq!(private_key.is_err(), true);
 }
 

@@ -5,7 +5,7 @@ use bn::{Fr, Group, G1, G2};
 use crate::{error::Bn254Error, utils};
 
 /// The Private Key as an element of `Fr`
-pub struct PrivateKey(bn::Fr);
+pub struct PrivateKey(pub bn::Fr);
 
 impl TryFrom<&[u8]> for PrivateKey {
     type Error = Bn254Error;
@@ -15,23 +15,23 @@ impl TryFrom<&[u8]> for PrivateKey {
     }
 }
 
-impl Into<bn::Fr> for PrivateKey {
-    fn into(self) -> bn::Fr {
-        self.0
+impl From<PrivateKey> for bn::Fr {
+    fn from(private_key: PrivateKey) -> Self {
+        private_key.0
     }
 }
 
-impl Into<bn::Fr> for &PrivateKey {
-    fn into(self) -> bn::Fr {
-        self.0
+impl From<&PrivateKey> for bn::Fr {
+    fn from(private_key: &PrivateKey) -> Self {
+        private_key.0
     }
 }
 
 impl PrivateKey {
     /// Function to derive a private key.
-    pub fn new(rng: &[u8]) -> Result<PrivateKey, Bn254Error> {
+    pub fn random(rng: &[u8]) -> Result<PrivateKey, Bn254Error> {
         // This function throws an error if the slice does not have a proper length.
-        let private_key = Fr::from_slice(&rng)?;
+        let private_key = Fr::from_slice(rng)?;
 
         Ok(PrivateKey(private_key))
     }
@@ -55,7 +55,7 @@ impl PublicKey {
     /// Function to create a `PublicKey` from bytes representing a G2 point in
     /// compressed format.
     pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        Ok(PublicKey(G2::from_compressed(&bytes)?))
+        Ok(PublicKey(G2::from_compressed(bytes)?))
     }
 
     /// Function to create a `PublicKey` from bytes representing a G2 point in
@@ -77,15 +77,15 @@ impl PublicKey {
     }
 }
 
-impl Into<bn::G2> for PublicKey {
-    fn into(self) -> bn::G2 {
-        self.0
+impl From<PublicKey> for bn::G2 {
+    fn from(public_key: PublicKey) -> Self {
+        public_key.0
     }
 }
 
-impl Into<bn::G2> for &PublicKey {
-    fn into(self) -> bn::G2 {
-        self.0
+impl From<&PublicKey> for bn::G2 {
+    fn from(public_key: &PublicKey) -> Self {
+        public_key.0
     }
 }
 
@@ -127,19 +127,19 @@ impl PublicKeyG1 {
     }
 
     pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        Ok(PublicKeyG1(G1::from_compressed(&bytes)?))
+        Ok(PublicKeyG1(G1::from_compressed(bytes)?))
     }
 }
 
-impl Into<bn::G1> for PublicKeyG1 {
-    fn into(self) -> bn::G1 {
-        self.0
+impl From<PublicKeyG1> for bn::G1 {
+    fn from(public_key: PublicKeyG1) -> Self {
+        public_key.0
     }
 }
 
-impl Into<bn::G1> for &PublicKeyG1 {
-    fn into(self) -> bn::G1 {
-        self.0
+impl From<&PublicKeyG1> for bn::G1 {
+    fn from(public_key: &PublicKeyG1) -> Self {
+        public_key.0
     }
 }
 
@@ -177,21 +177,21 @@ impl Signature {
     }
 
     pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        let uncompressed = G1::from_compressed(&bytes)?;
+        let uncompressed = G1::from_compressed(bytes)?;
 
         Ok(Signature(uncompressed))
     }
 }
 
-impl Into<bn::G1> for Signature {
-    fn into(self) -> bn::G1 {
-        self.0
+impl From<Signature> for bn::G1 {
+    fn from(signature: Signature) -> Self {
+        signature.0
     }
 }
 
-impl Into<bn::G1> for &Signature {
-    fn into(self) -> bn::G1 {
-        self.0
+impl From<&Signature> for bn::G1 {
+    fn from(signature: &Signature) -> Self {
+        signature.0
     }
 }
 

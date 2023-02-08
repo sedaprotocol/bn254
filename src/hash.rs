@@ -29,7 +29,7 @@ pub(crate) fn hash_to_try_and_increment(message: &[u8]) -> Result<G1, Bn254Error
     // Add counter suffix
     // This message should be: ciphersuite || 0x01 || message || ctr
     // For the moment we work with message || ctr until a tag is decided
-    let mut v = [&message[..], &[0x00]].concat();
+    let mut v = [message, &[0x00]].concat();
     let position = v.len() - 1;
 
     // `Hash(data||ctr)`

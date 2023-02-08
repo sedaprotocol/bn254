@@ -44,11 +44,13 @@ mod types;
 mod utils;
 
 #[cfg(test)]
-mod ecdsa_test;
-#[cfg(test)]
-mod hash_test;
-#[cfg(test)]
-mod types_test;
+#[path = ""]
+mod test {
+    use super::*;
+    mod ecdsa_test;
+    mod hash_test;
+    mod types_test;
+}
 
 pub use ecdsa::{check_public_keys, ECDSA};
 pub use error::Bn254Error;

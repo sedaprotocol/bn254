@@ -18,7 +18,7 @@ impl ECDSA {
     /// * If successful, the signature as a G1 point
     pub fn sign(message: &[u8], private_key: &PrivateKey) -> Result<Signature, Bn254Error> {
         // 1. Hash_to_try_and_increment --> H(m) as point in G1 (only if it exists)
-        let hash_point = hash::hash_to_try_and_increment(&message)?;
+        let hash_point = hash::hash_to_try_and_increment(message)?;
 
         // 2. Multiply hash_point times private_key --> Signature in G1
         let g1_point = hash_point * private_key.into();
@@ -43,7 +43,7 @@ impl ECDSA {
         // Pairing batch with one negated point
         let mut vals = Vec::new();
         // First pairing input: e(H(m), PubKey)
-        let hash_point = hash::hash_to_try_and_increment(&message)?;
+        let hash_point = hash::hash_to_try_and_increment(message)?;
         vals.push((hash_point, public_key.into()));
         // Second pairing input:  e(-Signature,G2::one())
         vals.push((signature.into(), -G2::one()));
@@ -70,11 +70,12 @@ impl ECDSA {
 /// * If successful, `Ok(())`; otherwise `Error`
 pub fn check_public_keys(public_key_g2: &PublicKey, public_key_g1: &PublicKeyG1) -> Result<(), Bn254Error> {
     // Pairing batch with one negated point
-    let mut vals = Vec::new();
-    // First pairing input: e(H(m), PubKey)
-    vals.push((bn::G1::one(), public_key_g2.into()));
-    // Second pairing input:  e(PubKey_G1, G2::one())
-    vals.push((public_key_g1.into(), -G2::one()));
+    let vals = vec![
+        // First pairing input: e(H(m), PubKey)
+        (bn::G1::one(), public_key_g2.into()),
+        // Second pairing input:  e(PubKey_G1, G2::one())
+        (public_key_g1.into(), -G2::one()),
+    ];
     let mul = pairing_batch(&vals);
 
     if mul == Gt::one() {

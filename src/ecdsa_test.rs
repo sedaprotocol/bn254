@@ -106,7 +106,7 @@ fn test_verify_invalid_public_keys_in_g1_g2() {
     let public_g2 = PublicKey::from_private_key(&private_key_1);
 
     let private_key_2_bytes = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
-    let private_key_2 = PrivateKey::new(private_key_2_bytes.as_ref()).unwrap();
+    let private_key_2 = PrivateKey::random(private_key_2_bytes.as_ref()).unwrap();
     let public_g1 = PublicKeyG1::from_private_key(&private_key_2);
 
     // Check if valid
