@@ -40,6 +40,7 @@
 mod ecdsa;
 mod error;
 mod hash;
+mod hash_to_curve;
 mod types;
 mod utils;
 
