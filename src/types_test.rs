@@ -1,3 +1,5 @@
+use bn::{Group, G2};
+
 /// Test vectors taken from https://asecuritysite.com/encryption/go_bn256.
 /// The public keys in G2 are changed in order in the website, i.e., imaginary
 /// goes first.
