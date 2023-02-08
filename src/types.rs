@@ -142,3 +142,11 @@ impl Into<bn::G1> for &Signature {
         self.0
     }
 }
+
+impl Add for Signature {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self::Output {
+        Signature(self.0.add(other.0))
+    }
+}
