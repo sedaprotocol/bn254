@@ -138,77 +138,20 @@ fn test_aggregate_public_keys_1() {
     assert_eq!(agg_public_key.to_compressed().unwrap(), expected);
 }
 
-// /// Test `aggregate_signatures`
-// #[test]
-// fn test_aggregate_signatures_1() {
-//     // Signatures (as valid points on G1)
-//     let sign_1 = utils::to_compressed_g1(G1::one()).unwrap();
-//     let sign_2 = utils::to_compressed_g1(G1::one()).unwrap();
-//     let signatures = [&sign_1[..], &sign_2[..]];
+/// Test `aggregate_signatures`
+#[test]
+fn test_aggregate_signatures_1() {
+    // Signatures (as valid points on G1)
+    let sign_1 = Signature(bn::G1::one());
+    let sign_2 = Signature(bn::G1::one());
 
-//     // Aggregation
-//     let agg_signature = Bn256
-//         .aggregate_signatures(&signatures)
-//         .expect("Signature aggregation should not fail if G1 points are
-// valid.");
+    // Aggregation
+    let aggregate_signature = sign_1 + sign_2;
 
-//     // Check
-//     let expected =
-// hex::decode("
-// 02030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3").
-// unwrap();     assert_eq!(agg_signature, expected);
-// }
-
-// /// Test aggregated signatures verification
-// #[test]
-// fn test_verify_aggregated_signatures_1() {
-//     // Message
-//     let msg = hex::decode("73616d706c65").unwrap();
-
-//     // Signature 1
-//     let secret_key1 =
-// hex::decode("
-// 1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
-
-//     let private_key1 = PrivateKey::try_from(secret_key1.as_ref()).unwrap();
-//     let public_key1 = PublicKey::from_private_key(private_key1);
-//     let sign_1 = Bn256.sign(&secret_key1, &msg).unwrap();
-
-//     // Signature 2
-//     let secret_key2 =
-// hex::decode("
-// 2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
-//     let private_key2 = PrivateKey::try_from(secret_key2.as_ref()).unwrap();
-//     let public_key2 = PublicKey::from_private_key(private_key2);
-//     let sign_2 = Bn256.sign(&secret_key2, &msg).unwrap();
-
-//     // Public Key and Signature aggregation
-//     let agg_public_key = public_key1 + public_key2;
-//     let agg_signature = Bn256.aggregate_signatures(&[&sign_1,
-// &sign_2]).unwrap();
-
-//     // Verification single signatures
-//     assert!(
-//         Bn256
-//             .verify(&sign_1, &msg, &public_key1.to_compressed().unwrap())
-//             .is_ok(),
-//         "Signature 1 verification failed"
-//     );
-//     assert!(
-//         Bn256
-//             .verify(&sign_2, &msg, &public_key2.to_compressed().unwrap())
-//             .is_ok(),
-//         "Signature 2 signature verification failed"
-//     );
-
-//     // Aggregated signature verification
-//     assert!(
-//         Bn256
-//             .verify(&agg_signature, &msg,
-// &agg_public_key.to_compressed().unwrap())             .is_ok(),
-//         "Aggregated signature verification failed"
-//     );
-// }
+    // Check
+    let expected = hex::decode("02030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3").unwrap();
+    assert_eq!(aggregate_signature.to_compressed().unwrap(), expected);
+}
 
 // /// Test PubKey in G1 -> PubKey in G2
 // /// e(G1, P2) = e(P1, G2)
