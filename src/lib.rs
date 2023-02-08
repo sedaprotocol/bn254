@@ -45,6 +45,15 @@ mod utils;
 
 pub use keys::{PrivateKey, PublicKey};
 
+#[derive(Copy, Clone, Debug)]
+pub struct Signature(bn::G1);
+
+impl Signature {
+    pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
+        utils::to_compressed_g1(self.0)
+    }
+}
+
 /// Multi signatures with curve bn254.
 pub struct ECDSA;
 
@@ -75,17 +84,16 @@ impl ECDSA {
     ///
     /// # Returns
     ///
-    /// * If successful, a vector of bytes with the signature
-    pub fn sign(&mut self, secret_key: &[u8], message: &[u8]) -> Result<Vec<u8>, Bn254Error> {
+    /// * If successful, the signature in G1
+    pub fn sign(&mut self, private_key: &PrivateKey, message: &[u8]) -> Result<Signature, Bn254Error> {
         // 1. Hash_to_try_and_increment --> H(m) as point in G1 (only if it exists)
         let hash_point = hash::hash_to_try_and_increment(&message)?;
 
         // 2. Multiply hash_point times secret_key --> Signature in G1
-        let sk = Fr::from_slice(&secret_key)?;
-        let signature = hash_point * sk;
+        let g1_point = hash_point * private_key.into();
 
-        // 3. Return signature as compressed bytes
-        utils::to_compressed_g1(signature)
+        // 3. Return signature
+        Ok(Signature(g1_point))
     }
 
     /// Function to verify a signature (point in G1) given a public key (point
@@ -172,12 +180,13 @@ mod test {
         let secret_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
         let data = hex::decode("73616d706c65").unwrap();
 
+        let private_key = PrivateKey::try_from(secret_key.as_ref()).unwrap();
+
         // Sign data with secret key
-        let signature = ECDSA.sign(&secret_key, &data).unwrap();
+        let signature = ECDSA.sign(&private_key, &data).unwrap();
 
         let expected_signature = "020f047a153e94b5f109e4013d1bd078112817cf0d58cdf6ba8891f9849852ba5b";
-
-        assert_eq!(hex::encode(signature), expected_signature);
+        assert_eq!(hex::encode(signature.to_compressed().unwrap()), expected_signature);
     }
 
     /// Test `verify` function with own signed message
