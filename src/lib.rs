@@ -108,15 +108,13 @@ impl ECDSA {
     /// # Returns
     ///
     /// * If successful, `Ok(())`; otherwise `Error`
-    pub fn verify(&mut self, signature: &[u8], message: &[u8], public_key: &[u8]) -> Result<(), Bn254Error> {
+    pub fn verify(&mut self, signature: &Signature, message: &[u8], public_key: &PublicKey) -> Result<(), Bn254Error> {
         let mut vals = Vec::new();
         // First pairing input: e(H(m), PubKey)
         let hash_point = hash::hash_to_try_and_increment(&message)?;
-        let public_key_point = G2::from_compressed(&public_key)?;
-        vals.push((hash_point, public_key_point));
+        vals.push((hash_point, public_key.into()));
         // Second pairing input:  e(-Signature,G2::one())
-        let signature_point = G1::from_compressed(&signature)?;
-        vals.push((signature_point, -G2::one()));
+        vals.push((signature.into(), -G2::one()));
         // Pairing batch with one negated point
         let mul = pairing_batch(&vals);
         if mul == Gt::one() {
@@ -198,16 +196,15 @@ mod test {
         let public_key = PublicKey::from_private_key(private_key);
 
         // Signature
-        let signature = hex::decode("020f047a153e94b5f109e4013d1bd078112817cf0d58cdf6ba8891f9849852ba5b").unwrap();
+        let signature_vec = hex::decode("020f047a153e94b5f109e4013d1bd078112817cf0d58cdf6ba8891f9849852ba5b").unwrap();
+        let signature = Signature::from_compressed(&signature_vec).unwrap();
 
         // Message signed
         let msg = hex::decode("73616d706c65").unwrap();
 
         // Verify signature
         assert!(
-            ECDSA
-                .verify(&signature, &msg, &public_key.to_compressed().unwrap())
-                .is_ok(),
+            ECDSA.verify(&signature, &msg, &public_key).is_ok(),
             "Verification failed"
         );
     }
