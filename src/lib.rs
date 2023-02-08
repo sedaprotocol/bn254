@@ -52,4 +52,4 @@ mod types_test;
 
 pub use ecdsa::ECDSA;
 pub use error::Bn254Error;
-pub use types::{PrivateKey, PublicKey, Signature};
+pub use types::{PrivateKey, PublicKey, PublicKeyG1, Signature};

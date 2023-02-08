@@ -113,23 +113,60 @@ impl Neg for PublicKey {
     }
 }
 
-// /// The Public Key as a point in G1
-// pub struct PublicKeyG1(pub bn::G1);
+/// The Public Key as a point in G1
+pub struct PublicKeyG1(pub bn::G1);
 
-// impl PublicKeyG1 {
-//     /// Function to derive the `bn254` public key from the private key.
-//     pub fn from_private_key(private_key: PrivateKey) -> Self {
-//         PublicKeyG1(G1::one() * private_key.into())
-//     }
+impl PublicKeyG1 {
+    /// Function to derive the `bn254` public key from the private key.
+    pub fn from_private_key(private_key: &PrivateKey) -> Self {
+        PublicKeyG1(G1::one() * private_key.into())
+    }
 
-//     pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
-//         utils::g1_to_compressed(self.0)
-//     }
+    pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
+        utils::g1_to_compressed(self.0)
+    }
 
-//     pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-//         Ok(PublicKeyG1(G1::from_compressed(&bytes)?))
-//     }
-// }
+    pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
+        Ok(PublicKeyG1(G1::from_compressed(&bytes)?))
+    }
+}
+
+
+impl Into<bn::G1> for PublicKeyG1 {
+    fn into(self) -> bn::G1 {
+        self.0
+    }
+}
+
+impl Into<bn::G1> for &PublicKeyG1 {
+    fn into(self) -> bn::G1 {
+        self.0
+    }
+}
+
+impl Add for PublicKeyG1 {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self::Output {
+        Self(self.0.add(other.0))
+    }
+}
+
+impl Sub for PublicKeyG1 {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self(self.0 - other.0)
+    }
+}
+
+impl Neg for PublicKeyG1 {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Self(-self.0)
+    }
+}
 
 /// The Signature as a point in G1
 #[derive(Copy, Clone, Debug)]
