@@ -45,6 +45,11 @@ mod types;
 mod utils;
 
 #[cfg(test)]
+mod test_utils;
+#[cfg(test)]
+pub(crate) use test_utils::*;
+
+#[cfg(test)]
 #[path = ""]
 mod test {
     use super::*;

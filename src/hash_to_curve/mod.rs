@@ -1,4 +1,4 @@
-use self::{element::Element, hash_to_field::hash_to_field, map_to_curve::map_to_curve};
+use self::{expand_msg_xmd::expand_msg_xmd, hash_to_field::hash_to_field, map_to_curve::map_to_curve};
 
 mod element;
 mod expand_msg_xmd;
@@ -9,7 +9,15 @@ use anyhow::Result;
 use bn::{AffineG1, G1};
 use digest::{crypto_common::BlockSizeUser, Digest, FixedOutputReset};
 
-fn hash_to_curve<Hasher>(data: &[u8], dst: &[u8]) -> Result<AffineG1>
+#[cfg(test)]
+#[path = ""]
+mod test {
+    use super::*;
+    use crate::test_utils::TestCase;
+    mod expand_msg_xmd_test;
+}
+
+pub fn hash_to_curve_g1<Hasher>(data: &[u8], dst: &[u8]) -> Result<AffineG1>
 where
     Hasher: Digest + BlockSizeUser + FixedOutputReset,
 {

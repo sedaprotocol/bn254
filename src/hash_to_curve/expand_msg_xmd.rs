@@ -58,21 +58,3 @@ where
 
     Ok(result)
 }
-
-mod test {
-    use super::*;
-
-    #[test]
-    fn simple() {
-        let dst = b"QUUX-V01-CS02-with-expander-SHA256-128";
-        let hex = "68a985b87eb6b46952128911f2a4412bbc302a9d759667f87f7a21d803f07235";
-        let uniform = expand_msg_xmd::<sha2::Sha256>(b"", dst, sha2::Sha256::output_size()).unwrap();
-
-        let uniform_og_hex = hex::decode(hex.as_bytes()).unwrap();
-
-        assert_eq!(uniform.len(), uniform_og_hex.len());
-        let uniform_hex = hex::encode(&uniform);
-        assert_eq!(uniform_hex, hex);
-        assert_eq!(uniform, uniform_og_hex);
-    }
-}
