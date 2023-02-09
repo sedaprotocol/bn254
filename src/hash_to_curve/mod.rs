@@ -21,9 +21,7 @@ pub fn hash_to_curve_g1<Hasher>(data: &[u8], dst: &[u8]) -> Result<AffineG1>
 where
     Hasher: BlockSizeUser + Digest + FixedOutput,
 {
-    let count = 1 + (254 - 1) / 8;
-    let l = 16 + count;
-    let u = hash_to_field::<Hasher>(data, dst, count, l)?;
+    let u = hash_to_field::<Hasher>(data, dst, 2)?;
 
     let q0 = map_to_curve(u[0])?;
     let q1 = map_to_curve(u[1])?;

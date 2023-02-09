@@ -1,9 +1,13 @@
-use std::ops::{Add, Mul, Neg, Sub};
+use std::{
+    ops::{Add, Mul, Neg, Sub},
+    str::FromStr,
+};
 
 use anyhow::{anyhow, Result};
 use bn::{arith::U256, Fq};
+use num_bigint::BigInt;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Element(pub(crate) Fq);
 
 impl Element {
@@ -77,6 +81,19 @@ impl Element {
                 1872782865047492001,
                 13514471836495169457,
                 415649166299893576,
+            ]))
+            .unwrap(),
+        )
+    }
+
+    #[inline]
+    pub(crate) fn r_square() -> Self {
+        Self(
+            Fq::from_u256(U256::from([
+                17522657719365597833,
+                13107472804851548667,
+                5164255478447964150,
+                493319470278259999,
             ]))
             .unwrap(),
         )
@@ -226,6 +243,42 @@ impl Element {
         result.reverse();
         // Can safely unwrap here
         Ok(result.try_into().unwrap())
+    }
+
+    /// assumes 0 ⩽ v < q
+    fn from_big_int_helper(int: BigInt) -> Self {
+        let mut parts = [0u64; 4];
+        dbg!(int.bits());
+        if cfg!(target_pointer_width = "64") {
+            int.iter_u64_digits()
+                .enumerate()
+                .for_each(|(index, u64)| parts[index] = u64);
+        } else {
+            todo!()
+        }
+
+        dbg!(parts);
+        let e = Self(Fq::from_u256(U256::from(parts)).unwrap());
+        e * Self::r_square()
+    }
+
+    pub(crate) fn from_big_int(int: BigInt) -> Self {
+        let res = Self::zero();
+        let zero_big = BigInt::from(0);
+        dbg!(&zero_big);
+        let modulus =
+            BigInt::from_str("21888242871839275222246405745257275088696311157297823662689037894645226208583").unwrap();
+        dbg!(&modulus);
+
+        if int == modulus {
+            res
+        } else if int > zero_big && int < modulus {
+            // checks 0 ⩽ v < q
+            Self::from_big_int_helper(int)
+        } else {
+            let vv = int % modulus;
+            Self::from_big_int(vv)
+        }
     }
 
     pub(crate) fn from_slice(bytes: &[u8]) -> Result<Self> {
