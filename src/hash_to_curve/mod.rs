@@ -7,7 +7,7 @@ mod map_to_curve;
 
 use anyhow::Result;
 use bn::{AffineG1, G1};
-use digest::{crypto_common::BlockSizeUser, Digest, FixedOutputReset};
+use digest::{crypto_common::BlockSizeUser, Digest, FixedOutput};
 
 #[cfg(test)]
 #[path = ""]
@@ -19,7 +19,7 @@ mod test {
 
 pub fn hash_to_curve_g1<Hasher>(data: &[u8], dst: &[u8]) -> Result<AffineG1>
 where
-    Hasher: Digest + BlockSizeUser + FixedOutputReset,
+    Hasher: BlockSizeUser + Digest + FixedOutput,
 {
     let count = 1 + (254 - 1) / 8;
     let l = 16 + count;

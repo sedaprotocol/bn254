@@ -1,5 +1,5 @@
 use anyhow::Result;
-use digest::{crypto_common::BlockSizeUser, Digest, FixedOutputReset};
+use digest::{crypto_common::BlockSizeUser, Digest, FixedOutput};
 
 use super::element::Element;
 use crate::hash_to_curve::expand_msg_xmd::expand_msg_xmd;
@@ -8,7 +8,7 @@ use crate::hash_to_curve::expand_msg_xmd::expand_msg_xmd;
 // https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-11#section-5.3
 pub(crate) fn hash_to_field<Hasher>(data: &[u8], dst: &[u8], count: usize, l: usize) -> Result<Vec<Element>>
 where
-    Hasher: Digest + BlockSizeUser + FixedOutputReset,
+    Hasher: BlockSizeUser + Digest + FixedOutput,
 {
     let len_in_bytes = count * l;
     dbg!(l);
