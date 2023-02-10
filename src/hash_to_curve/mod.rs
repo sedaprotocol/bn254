@@ -1,4 +1,4 @@
-use self::{expand_msg_xmd::expand_msg_xmd, hash_to_field::hash_to_field, map_to_curve::map_to_curve};
+use self::{hash_to_field::hash_to_field, map_to_curve::map_to_curve};
 
 mod element;
 mod expand_msg_xmd;
@@ -15,13 +15,16 @@ mod test {
     use super::*;
     use crate::test_utils::TestCase;
     mod expand_msg_xmd_test;
+    mod hash_to_field_test;
 }
 
-pub fn hash_to_curve_g1<Hasher>(data: &[u8], dst: &[u8]) -> Result<AffineG1>
+pub fn hash_to_curve_g1<Hasher, Msg, Dst>(message: Msg, dst: Dst) -> Result<AffineG1>
 where
     Hasher: BlockSizeUser + Digest + FixedOutput,
+    Msg: AsRef<[u8]>,
+    Dst: AsRef<[u8]>,
 {
-    let u = hash_to_field::<Hasher>(data, dst, 2)?;
+    let u = hash_to_field::<Hasher>(message.as_ref(), dst.as_ref(), 2)?;
 
     let q0 = map_to_curve(u[0])?;
     let q1 = map_to_curve(u[1])?;

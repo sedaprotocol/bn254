@@ -93,7 +93,7 @@ fn test_xmd_msg_expand_sha256() {
     ];
 
     TestCase::run_output_match(tests, |p| {
-        expand_msg_xmd::<sha2::Sha256>(p.msg, dst, p.len_in_bytes).unwrap()
+        expand_msg_xmd::expand_msg_xmd::<sha2::Sha256>(p.msg, dst, p.len_in_bytes).unwrap()
     });
 }
 
@@ -185,6 +185,6 @@ fn test_xmd_msg_expand_sha512() {
     ];
 
     TestCase::run_output_match(tests, |p| {
-        expand_msg_xmd::<sha2::Sha512>(p.msg, dst, p.len_in_bytes).unwrap()
+        expand_msg_xmd::expand_msg_xmd::<sha2::Sha512>(p.msg, dst, p.len_in_bytes).unwrap()
     });
 }

@@ -248,7 +248,6 @@ impl Element {
     /// assumes 0 ⩽ v < q
     fn from_big_int_helper(int: BigInt) -> Self {
         let mut parts = [0u64; 4];
-        dbg!(int.bits());
         if cfg!(target_pointer_width = "64") {
             int.iter_u64_digits()
                 .enumerate()
@@ -257,7 +256,6 @@ impl Element {
             todo!()
         }
 
-        dbg!(parts);
         let e = Self(Fq::from_u256(U256::from(parts)).unwrap());
         e * Self::r_square()
     }
@@ -265,10 +263,9 @@ impl Element {
     pub(crate) fn from_big_int(int: BigInt) -> Self {
         let res = Self::zero();
         let zero_big = BigInt::from(0);
-        dbg!(&zero_big);
+        // TODO: how to not parse this every time >.<
         let modulus =
-            BigInt::from_str("21888242871839275222246405745257275088696311157297823662689037894645226208583").unwrap();
-        dbg!(&modulus);
+            BigInt::parse_bytes(b"30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47", 16).unwrap();
 
         if int == modulus {
             res
@@ -281,10 +278,10 @@ impl Element {
         }
     }
 
-    pub(crate) fn from_slice(bytes: &[u8]) -> Result<Self> {
+    pub(crate) fn from_slice<T: AsRef<[u8]>>(bytes: T) -> Result<Self> {
         // dbg!(bytes.len());
         // dbg!(U256::from_slice(bytes));
-        Ok(Self(Fq::from_slice(bytes).map_err(|err| anyhow!("{err:?}"))?))
+        Ok(Self(Fq::from_slice(bytes.as_ref()).map_err(|err| anyhow!("{err:?}"))?))
     }
 
     pub(crate) fn inverse(self) -> Option<Self> {
