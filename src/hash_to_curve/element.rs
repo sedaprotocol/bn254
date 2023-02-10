@@ -87,6 +87,12 @@ impl Element {
     }
 
     #[inline]
+    pub(crate) fn b_curve_coeff() -> Self {
+        let res = Self(Fq::from_u256(U256::from([3, 0, 0, 0])).unwrap());
+        res * Self::r_square()
+    }
+
+    #[inline]
     pub(crate) fn r_square() -> Self {
         Self(
             Fq::from_u256(U256::from([
@@ -228,9 +234,9 @@ impl Element {
         -1
     }
 
-    fn bits(self) -> Result<[u64; 4]> {
+    pub(crate) fn bits(self) -> Result<[u64; 4]> {
         // pain they don't have a method to get these in little endian.
-        let mut bytes = Vec::new();
+        let mut bytes = vec![0u8; 32];
         self.0
             .into_u256()
             .to_big_endian(&mut bytes)
@@ -279,8 +285,6 @@ impl Element {
     }
 
     pub(crate) fn from_slice<T: AsRef<[u8]>>(bytes: T) -> Result<Self> {
-        // dbg!(bytes.len());
-        // dbg!(U256::from_slice(bytes));
         Ok(Self(Fq::from_slice(bytes.as_ref()).map_err(|err| anyhow!("{err:?}"))?))
     }
 
@@ -299,14 +303,32 @@ impl Element {
         Ok(non_mont[0] % 2)
     }
 
+    // If c = 0, x0 else x1
     pub(crate) fn select(self, c: i64, x0: Self, x1: Self) -> Self {
-        let cc = (c | -c) >> 63;
+        if c == 0 { x0 } else { x1 }
 
-        todo!()
+        // This is how I saw it implemented  but... seems overly complex
+        // let mut parts = [0u64; 4];
+        // let cc = ((c | -c) >> 63) as u64;
+        // let x0 = x0.bits().unwrap();
+        // let x1 = x1.bits().unwrap();
+
+        // parts[0] = x0[0] & cc & (x0[0] & x1[0]);
+        // parts[1] = x0[1] & cc & (x0[1] & x1[1]);
+        // parts[2] = x0[2] & cc & (x0[2] & x1[2]);
+        // parts[3] = x0[3] & cc & (x0[3] & x1[3]);
+        // Self(Fq::from_u256(U256::from(parts)).unwrap())
     }
 
-    pub(crate) fn sqrt(self) -> Option<Self> {
-        self.0.sqrt().map(Self)
+    // Sqrt z = √x (mod q)
+    // if the square root doesn't exist (x is not a square mod q)
+    // returns self
+    pub(crate) fn sqrt(self) -> Self {
+        if let Some(sqrt) = self.0.sqrt() {
+            Self(sqrt)
+        } else {
+            self
+        }
     }
 
     // TODO: This seems to have an optimized algo that we should use at some point
