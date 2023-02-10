@@ -11,6 +11,24 @@ use crate::{
 /// The Private Key as an element of [Fr]
 pub struct PrivateKey(pub Fr);
 
+impl PrivateKey {
+    /// Function to create a random [PrivateKey].
+    pub fn random<R>(rng: &mut R) -> Self
+    where
+        R: Rng,
+    {
+        // This function throws an error if the slice does not have a proper length.
+        let private_key = Fr::random(rng);
+
+        Self(private_key)
+    }
+
+    /// Function to obtain a private key in bytes.
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        utils::fr_to_bytes(self.into())
+    }
+}
+
 impl TryFrom<&[u8]> for PrivateKey {
     type Error = Error;
 
@@ -28,25 +46,6 @@ impl From<PrivateKey> for Fr {
 impl From<&PrivateKey> for Fr {
     fn from(private_key: &PrivateKey) -> Self {
         private_key.0
-    }
-}
-
-impl PrivateKey {
-    /// Function to create a random [PrivateKey].
-    pub fn random<R>(rng: &mut R) -> Self
-    where
-        R: Rng,
-    {
-        // This function throws an error if the slice does not have a proper length.
-
-        let private_key = Fr::random(rng);
-
-        Self(private_key)
-    }
-
-    /// Function to obtain a private key in bytes.
-    pub fn to_bytes(&self) -> Result<Vec<u8>> {
-        utils::fr_to_bytes(self.into())
     }
 }
 
@@ -179,7 +178,7 @@ impl Neg for PublicKeyG1 {
     }
 }
 
-/// The Signature as a point in `G1`
+/// The Signature as a point in [G1]
 #[derive(Copy, Clone, Debug)]
 pub struct Signature(pub G1);
 

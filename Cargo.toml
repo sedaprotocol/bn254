@@ -1,9 +1,9 @@
 [package]
 name = "bn254"
-version = "0.1.0"
+version = "0.0.1"
 description = "Open source implementation of Barreto-Naehrig (BN) aggregate signatures written in Rust"
-keywords = ["bn254", "Barreto-Naehrig", "bn256", "alt-bn128", "bn128", "bls"]
-categories = ["algorithms", "cryptography"]
+keywords = ["bn254", "bn", "bn256", "bn128", "bls"]
+categories = ["cryptography", "crypto", "algorithms"]
 
 license = "MIT"
 edition = "2021"

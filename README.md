@@ -1,12 +1,9 @@
 # bn254
 [![](https://img.shields.io/crates/v/bn254.svg)](https://crates.io/crates/bn254) [![](https://docs.rs/bn254/badge.svg)](https://docs.rs/bn254)
 
-`bn254` is an open source Rust implementation of aggregate signatures over the pairing friendly elliptic curve BN254 ([Barreto-Naehrig (BN)](https://www.cryptojedi.org/papers/pfcpo.pdf)).
+`bn254` is an open-source Rust implementation of aggregate signatures over the pairing-friendly elliptic curve BN254 ([Barreto-Naehrig (BN)](https://www.cryptojedi.org/papers/pfcpo.pdf)).
 
-The name `bn254` stands for the number of bits in the prime associated to the base field.
-The bits of security of `bn254` dropped from 128 to around 100 after new algorithms of [Kim-Barbulescu](https://eprint.iacr.org/2015/1027.pdf).
-
-This curve is also known as `bn256` or `bn128` (`alt-bn128`) referred to the bits of security.
+This curve is also known as `bn256` or `bn128` (`alt-bn128`) referred to the bits of security. The bits of security of `bn254` dropped from 128 to around 100 after the new algorithms of [Kim-Barbulescu](https://eprint.iacr.org/2015/1027.pdf).
 
 _DISCLAIMER_: This is experimental software. Be careful!
 
@@ -15,18 +12,19 @@ _DISCLAIMER_: This is experimental software. Be careful!
 This module uses the [substrate-bn](https://github.com/paritytech/bn) library to perform elliptic curve operations over the appropriate fields. It provides the following functionalities:
 
 * `sign`: Sign a message given a secret key.
-* `verify`: Given a public key, a signature and a message it verifies whether the signature is valid.
+* `verify`: Given a public key, a signature, and a message it verifies whether the signature is valid.
 
-Signature and public aggregation can be done directly by using the `+` or `-` operator.
+Signature and public aggregation can be done directly with the `+` or `-` operators.
 
 ## Hashing to G1
 
-The algorithm utilized to hash a given message into a point in G1 is try and increment. We discourage its usage in the cases of hashing secret messages since its running time leaks information about the input.
- In any other cases, where the message to be hashed is public, try and increment should be safe. The hashing algorithm utilized is `sha256`.
+The algorithm used for hashing a given message into a point in G1 follows the "try-and-increment" method. We discourage its usage in the cases of hashing secret messages since its running time leaks information about the input.
+
+In other cases, where the message to be hashed is public, "try-and-increment" should be safe. The hashing algorithm utilized is `sha256`.
 
 ## Example
 
-Sign, aggregate and verify by using the BN256 curve:
+Sign, aggregate and verify by using the `bn254` curve:
 
 ```rust
 use bn254::{PrivateKey, PublicKey, ECDSA};
