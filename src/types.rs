@@ -15,7 +15,7 @@ impl TryFrom<&[u8]> for PrivateKey {
     type Error = Error;
 
     fn try_from(private_key: &[u8]) -> Result<Self, Self::Error> {
-        Ok(PrivateKey(Fr::from_slice(&private_key[0..32])?))
+        Ok(PrivateKey(Fr::from_slice(private_key)?))
     }
 }
 
