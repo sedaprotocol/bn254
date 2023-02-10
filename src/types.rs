@@ -1,89 +1,97 @@
 use std::ops::{Add, Neg, Sub};
 
 use bn::{Fr, Group, G1, G2};
+use rand::Rng;
 
-use crate::{error::Bn254Error, utils};
+use crate::{
+    error::{Error, Result},
+    utils,
+};
 
-/// The Private Key as an element of `Fr`
-pub struct PrivateKey(pub bn::Fr);
+/// The Private Key as an element of [Fr]
+pub struct PrivateKey(pub Fr);
 
 impl TryFrom<&[u8]> for PrivateKey {
-    type Error = Bn254Error;
+    type Error = Error;
 
     fn try_from(private_key: &[u8]) -> Result<Self, Self::Error> {
         Ok(PrivateKey(Fr::from_slice(&private_key[0..32])?))
     }
 }
 
-impl From<PrivateKey> for bn::Fr {
+impl From<PrivateKey> for Fr {
     fn from(private_key: PrivateKey) -> Self {
         private_key.0
     }
 }
 
-impl From<&PrivateKey> for bn::Fr {
+impl From<&PrivateKey> for Fr {
     fn from(private_key: &PrivateKey) -> Self {
         private_key.0
     }
 }
 
 impl PrivateKey {
-    /// Function to derive a private key.
-    pub fn random(rng: &[u8]) -> Result<PrivateKey, Bn254Error> {
+    /// Function to create a random [PrivateKey].
+    pub fn random<R>(rng: &mut R) -> Self
+    where
+        R: Rng,
+    {
         // This function throws an error if the slice does not have a proper length.
-        let private_key = Fr::from_slice(rng)?;
 
-        Ok(PrivateKey(private_key))
+        let private_key = Fr::random(rng);
+
+        Self(private_key)
     }
 
     /// Function to obtain a private key in bytes.
-    pub fn to_bytes(&self) -> Result<Vec<u8>, Bn254Error> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
         utils::fr_to_bytes(self.into())
     }
 }
 
-/// The Public Key as a point in G2
+/// The Public Key as a point in [G2]
 #[derive(Copy, Clone, Debug)]
-pub struct PublicKey(pub bn::G2);
+pub struct PublicKey(pub G2);
 
 impl PublicKey {
-    /// Function to derive the `bn254` public key from the private key.
+    /// Function to derive the `bn254` public key from the [PrivateKey].
     pub fn from_private_key(private_key: &PrivateKey) -> Self {
-        PublicKey(G2::one() * private_key.into())
+        Self(G2::one() * private_key.into())
     }
 
-    /// Function to create a `PublicKey` from bytes representing a G2 point in
+    /// Function to create a [PublicKey] from bytes representing a [G2] point in
     /// compressed format.
-    pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        Ok(PublicKey(G2::from_compressed(bytes)?))
+    pub fn from_compressed<T: AsRef<[u8]>>(bytes: T) -> Result<Self> {
+        Ok(Self(G2::from_compressed(bytes.as_ref())?))
     }
 
-    /// Function to create a `PublicKey` from bytes representing a G2 point in
+    /// Function to create a [PublicKey] from bytes representing a [G2] point in
     /// uncompressed format.
-    pub fn from_uncompressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        Ok(PublicKey(utils::from_uncompressed_to_g2(bytes)?))
+    pub fn from_uncompressed<T: AsRef<[u8]>>(bytes: T) -> Result<Self> {
+        Ok(Self(utils::from_uncompressed_to_g2(bytes.as_ref())?))
     }
 
-    /// Function to serialize the `PublicKey` to vector of bytes in compressed
+    /// Function to serialize the [PublicKey] to vector of bytes in compressed
     /// format.
-    pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
+    pub fn to_compressed(&self) -> Result<Vec<u8>> {
         utils::g2_to_compressed(self.into())
     }
 
-    /// Function to serialize the `PublicKey` to vector of bytes in uncompressed
+    /// Function to serialize the [PublicKey] to vector of bytes in uncompressed
     /// format.
-    pub fn to_uncompressed(&self) -> Result<Vec<u8>, Bn254Error> {
+    pub fn to_uncompressed(&self) -> Result<Vec<u8>> {
         utils::g2_to_uncompressed(self.into())
     }
 }
 
-impl From<PublicKey> for bn::G2 {
+impl From<PublicKey> for G2 {
     fn from(public_key: PublicKey) -> Self {
         public_key.0
     }
 }
 
-impl From<&PublicKey> for bn::G2 {
+impl From<&PublicKey> for G2 {
     fn from(public_key: &PublicKey) -> Self {
         public_key.0
     }
@@ -113,31 +121,35 @@ impl Neg for PublicKey {
     }
 }
 
-/// The Public Key as a point in G1
-pub struct PublicKeyG1(pub bn::G1);
+/// The Public Key as a point in [G1]
+pub struct PublicKeyG1(pub G1);
 
 impl PublicKeyG1 {
-    /// Function to derive the `bn254` public key from the private key.
+    /// Function to derive the `bn254` public key from the [PrivateKey].
     pub fn from_private_key(private_key: &PrivateKey) -> Self {
-        PublicKeyG1(G1::one() * private_key.into())
+        Self(G1::one() * private_key.into())
     }
 
-    pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
+    /// Function to serialize the [PublicKeyG1] to vector of bytes in compressed
+    /// format.
+    pub fn to_compressed(&self) -> Result<Vec<u8>> {
         utils::g1_to_compressed(self.0)
     }
 
-    pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        Ok(PublicKeyG1(G1::from_compressed(bytes)?))
+    /// Function to create a [PublicKeyG1] from bytes representing a [G1] point
+    /// in compressed format.
+    pub fn from_compressed<T: AsRef<[u8]>>(bytes: T) -> Result<Self> {
+        Ok(Self(G1::from_compressed(bytes.as_ref())?))
     }
 }
 
-impl From<PublicKeyG1> for bn::G1 {
+impl From<PublicKeyG1> for G1 {
     fn from(public_key: PublicKeyG1) -> Self {
         public_key.0
     }
 }
 
-impl From<&PublicKeyG1> for bn::G1 {
+impl From<&PublicKeyG1> for G1 {
     fn from(public_key: &PublicKeyG1) -> Self {
         public_key.0
     }
@@ -167,29 +179,33 @@ impl Neg for PublicKeyG1 {
     }
 }
 
-/// The Signature as a point in G1
+/// The Signature as a point in `G1`
 #[derive(Copy, Clone, Debug)]
-pub struct Signature(pub bn::G1);
+pub struct Signature(pub G1);
 
 impl Signature {
-    pub fn to_compressed(&self) -> Result<Vec<u8>, Bn254Error> {
+    /// Function to serialize the [Signature] to vector of bytes in compressed
+    /// format.
+    pub fn to_compressed(&self) -> Result<Vec<u8>> {
         utils::g1_to_compressed(self.0)
     }
 
-    pub fn from_compressed(bytes: &[u8]) -> Result<Self, Bn254Error> {
-        let uncompressed = G1::from_compressed(bytes)?;
+    /// Function to create a [Signature] from bytes representing a [G1] point in
+    /// compressed format.
+    pub fn from_compressed<T: AsRef<[u8]>>(bytes: T) -> Result<Self> {
+        let uncompressed = G1::from_compressed(bytes.as_ref())?;
 
-        Ok(Signature(uncompressed))
+        Ok(Self(uncompressed))
     }
 }
 
-impl From<Signature> for bn::G1 {
+impl From<Signature> for G1 {
     fn from(signature: Signature) -> Self {
         signature.0
     }
 }
 
-impl From<&Signature> for bn::G1 {
+impl From<&Signature> for G1 {
     fn from(signature: &Signature) -> Self {
         signature.0
     }

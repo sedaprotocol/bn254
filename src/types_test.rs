@@ -14,26 +14,27 @@ use super::*;
 #[test]
 fn test_valid_private_key() {
     let compressed = hex::decode("023aed31b5a9e486366ea9988b05dba469c6206e58361d9c065bbea7d928204a").unwrap();
-    let private_key = PrivateKey::random(&compressed.as_slice());
-    assert_eq!(private_key.is_err(), false);
+    let private_key = PrivateKey::try_from(compressed.as_slice());
     assert_eq!(private_key.unwrap().to_bytes().unwrap(), compressed);
 }
 
 #[test]
+#[should_panic(expected = "InvalidLength")]
 fn test_invalid_private_key_1() {
     let compressed = hex::decode(
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     )
     .unwrap();
-    let private_key = PrivateKey::random(&compressed.as_slice());
-    assert_eq!(private_key.is_err(), true);
+    let private_key = PrivateKey::try_from(compressed.as_slice());
+    private_key.unwrap();
 }
 
 #[test]
+#[should_panic(expected = "InvalidLength")]
 fn test_invalid_private_key_2() {
     let compressed = hex::decode("aaaa").unwrap();
-    let private_key = PrivateKey::random(&compressed.as_slice());
-    assert_eq!(private_key.is_err(), true);
+    let private_key = PrivateKey::try_from(compressed.as_slice());
+    private_key.unwrap();
 }
 
 #[test]
@@ -69,7 +70,7 @@ fn test_to_public_key_1() {
              0f46bd1ef47552c3089604c65a3e7154e3976410be01149b60d5a41a6053e6c2",
     )
     .unwrap();
-    let expected_public_key = PublicKey::from_uncompressed(&expected).unwrap();
+    let expected_public_key = PublicKey::from_uncompressed(expected).unwrap();
     let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
     let public_key = PublicKey::from_private_key(&private_key);
     assert_eq!(public_key.0, expected_public_key.0);
@@ -85,7 +86,7 @@ fn test_to_public_key_2() {
              2ec596e93402de0abc73ce741f37ed4984a0b59c96e20df8c9ea1c4e6ec04556",
     )
     .unwrap();
-    let expected_public_key = PublicKey::from_uncompressed(&expected).unwrap();
+    let expected_public_key = PublicKey::from_uncompressed(expected).unwrap();
     let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
     let public_key = PublicKey::from_private_key(&private_key);
     assert_eq!(public_key.0, expected_public_key.0);
@@ -101,7 +102,7 @@ fn test_to_public_key_3() {
              2410eee842807d9325f22d087fa6bc79d9bbea07f5fa8c345e1e57b28ad54f84",
     )
     .unwrap();
-    let expected_public_key = PublicKey::from_uncompressed(&expected).unwrap();
+    let expected_public_key = PublicKey::from_uncompressed(expected).unwrap();
     let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
     let public_key = PublicKey::from_private_key(&private_key);
     assert_eq!(public_key.0, expected_public_key.0);
@@ -117,7 +118,7 @@ fn test_to_public_key_4() {
              02b54a5deaaf86dc7f03d080c8373d62f03b3be06dac42b2d9426a8ebd0caf4a",
     )
     .unwrap();
-    let expected_public_key = PublicKey::from_uncompressed(&expected).unwrap();
+    let expected_public_key = PublicKey::from_uncompressed(expected).unwrap();
     let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
     let public_key = PublicKey::from_private_key(&private_key);
     assert_eq!(public_key.0, expected_public_key.0);

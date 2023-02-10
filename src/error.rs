@@ -1,9 +1,9 @@
 //! Errors returned by the bn256 library
 use bn::{CurveError, FieldError, GroupError};
-use thiserror::Error;
+use thiserror::Error as ThisError;
 
-#[derive(Error, Debug)]
-pub enum Bn254Error {
+#[derive(ThisError, Debug)]
+pub enum Error {
     #[error("errored to find a valid point while converting hash to point")]
     HashToPointError,
     #[error("errored to get data from an index out of bounds")]
@@ -24,35 +24,37 @@ pub enum Bn254Error {
     VerificationFailed,
 }
 
-impl From<CurveError> for Bn254Error {
+impl From<CurveError> for Error {
     fn from(error: CurveError) -> Self {
         match error {
-            CurveError::InvalidEncoding => Bn254Error::InvalidEncoding,
-            CurveError::NotMember => Bn254Error::NotMemberError,
+            CurveError::InvalidEncoding => Error::InvalidEncoding,
+            CurveError::NotMember => Error::NotMemberError,
             CurveError::Field(field_error) => field_error.into(),
-            CurveError::ToAffineConversion => Bn254Error::ToAffineConversion,
+            CurveError::ToAffineConversion => Error::ToAffineConversion,
         }
     }
 }
 
-impl From<FieldError> for Bn254Error {
+impl From<FieldError> for Error {
     fn from(error: FieldError) -> Self {
         match error {
-            FieldError::NotMember => Bn254Error::NotMemberError,
-            FieldError::InvalidSliceLength => Bn254Error::InvalidLength,
-            FieldError::InvalidU512Encoding => Bn254Error::InvalidEncoding,
+            FieldError::NotMember => Error::NotMemberError,
+            FieldError::InvalidSliceLength => Error::InvalidLength,
+            FieldError::InvalidU512Encoding => Error::InvalidEncoding,
         }
     }
 }
 
-impl From<GroupError> for Bn254Error {
+impl From<GroupError> for Error {
     fn from(_error: GroupError) -> Self {
-        Bn254Error::InvalidGroupPoint
+        Error::InvalidGroupPoint
     }
 }
 
-impl From<bn::arith::Error> for Bn254Error {
+impl From<bn::arith::Error> for Error {
     fn from(_error: bn::arith::Error) -> Self {
-        Bn254Error::InvalidLength
+        Error::InvalidLength
     }
 }
+
+pub type Result<T, E = Error> = core::result::Result<T, E>;

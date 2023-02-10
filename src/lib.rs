@@ -53,5 +53,5 @@ mod test {
 }
 
 pub use ecdsa::{check_public_keys, ECDSA};
-pub use error::Bn254Error;
+pub use error::{Error, Result};
 pub use types::{PrivateKey, PublicKey, PublicKeyG1, Signature};

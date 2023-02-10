@@ -1,7 +1,10 @@
 use bn::{arith, Fq, G1};
 use sha2::{Digest, Sha256};
 
-use crate::{error::Bn254Error, utils};
+use crate::{
+    error::{Error, Result},
+    utils,
+};
 
 /// This is 0xf1f5883e65f820d099915c908786b9d3f58714d70a38f4c22ca2bc723a70f263,
 /// the last mulitple of the modulus before 2^256
@@ -22,21 +25,19 @@ pub(crate) const LAST_MULTIPLE_OF_FQ_MODULUS_LOWER_THAN_2_256: arith::U256 = ari
 ///
 /// # Returns
 ///
-/// * If successful, a point in the `G1` group representing the hashed point.
-pub(crate) fn hash_to_try_and_increment(message: &[u8]) -> Result<G1, Bn254Error> {
-    let mut c = 0..255;
-
+/// * If successful, a point in the [G1] group representing the hashed point.
+pub(crate) fn hash_to_try_and_increment<T: AsRef<[u8]>>(message: T) -> Result<G1> {
     // Add counter suffix
     // This message should be: ciphersuite || 0x01 || message || ctr
     // For the moment we work with message || ctr until a tag is decided
-    let mut v = [message, &[0x00]].concat();
+    let mut v = [message.as_ref(), &[0x00]].concat();
     let position = v.len() - 1;
 
     // `Hash(data||ctr)`
     // The modulus of bn256 is low enough to trigger several iterations of this loop
     // We instead compute attempted_hash = `Hash(data||ctr)` mod Fq::modulus
     // This should trigger less iterations of the loop
-    let point = c.find_map(|ctr| {
+    let point = (0..255).find_map(|ctr| {
         v[position] = ctr;
         let hash = Sha256::digest(&v);
         // this should never fail as the length of sha256 is max 256
@@ -57,6 +58,6 @@ pub(crate) fn hash_to_try_and_increment(message: &[u8]) -> Result<G1, Bn254Error
             .and_then(|_| utils::arbitrary_string_to_g1(&s).ok())
     });
 
-    // Return Bn254Error if no valid point was found
-    point.ok_or(Bn254Error::HashToPointError)
+    // Return an error if no valid point was found
+    point.ok_or(Error::HashToPointError)
 }
