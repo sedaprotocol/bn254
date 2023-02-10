@@ -13,12 +13,11 @@ repository = "https://github.com/sedaprotocol/bn254"
 readme = "README.md"
 
 [dependencies]
-bn = { package = "substrate-bn", version = "0.6.0" }
-byteorder = "1.4.3"
-rand = "0.8.5"
-serde_json = "1.0.92"
-sha2 = "0.10.6"
-thiserror = "1.0.38"
+bn = { package = "substrate-bn", version = "0.6" }
+byteorder = "1.4"
+rand = { version = "0.8", default-features = false }
+sha2 = "0.10"
+thiserror = "1.0"
 
 [dev-dependencies]
-hex = "0.4.2"
+hex = "0.4"
