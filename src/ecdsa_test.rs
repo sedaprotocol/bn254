@@ -113,3 +113,47 @@ fn test_verify_invalid_public_keys_in_g1_g2() {
     let result = check_public_keys(&public_g2, &public_g1);
     assert!(matches!(result, Err(Error::VerificationFailed)));
 }
+
+/// Test 'PublicKeyG1::from_uncompressed' and 'PublicKeyG1::to_uncompressed'
+#[test]
+fn test_public_key_g1_from_uncompressed() {
+    let private_key_bytes = hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
+    let private_key = PrivateKey::try_from(private_key_bytes.as_ref()).unwrap();
+
+    // Get public keys in G1 and G2
+    let public_g2 = PublicKey::from_private_key(&private_key);
+    let public_g1 = PublicKeyG1::from_private_key(&private_key);
+
+    let pk_g1_uncompressed = public_g1.to_uncompressed().unwrap();
+    let public_g1_again = PublicKeyG1::from_uncompressed(pk_g1_uncompressed).unwrap();
+
+    // Check if valid
+    assert!(
+        check_public_keys(&public_g2, &public_g1_again).is_ok(),
+        "Public Key in G1 DOES NOT correspond to Public Key in G2"
+    );
+}
+
+/// Test `Signature::from_uncompressed()` and `Signature::to_uncompressed()`
+#[test]
+fn test_sig_from_uncompressed() {
+    // Public key
+    let private_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
+    let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
+    let public_key = PublicKey::from_private_key(&private_key);
+
+    // Signature
+    let signature_vec = hex::decode("020f047a153e94b5f109e4013d1bd078112817cf0d58cdf6ba8891f9849852ba5b").unwrap();
+    let signature = Signature::from_compressed(signature_vec).unwrap();
+    let uncompressed_sig = signature.to_uncompressed().unwrap();
+    let signature_again = Signature::from_uncompressed(uncompressed_sig).unwrap();
+
+    // Message signed
+    let msg = hex::decode("73616d706c65").unwrap();
+
+    // Verify signature
+    assert!(
+        ECDSA::verify(msg, &signature_again, &public_key).is_ok(),
+        "Verification failed"
+    );
+}

@@ -140,6 +140,18 @@ impl PublicKeyG1 {
     pub fn from_compressed<T: AsRef<[u8]>>(bytes: T) -> Result<Self> {
         Ok(Self(G1::from_compressed(bytes.as_ref())?))
     }
+
+    /// Function to create a [Signature] from bytes representing a [G1] point in
+    /// uncompressed format.
+    pub fn from_uncompressed<T: AsRef<[u8]>>(bytes: T) -> Result<Self> {
+        Ok(Self(utils::from_uncompressed_to_g1(bytes.as_ref())?))
+    }
+
+    /// Function to serialize the [Signature] to vector of bytes in uncompressed
+    /// format.
+    pub fn to_uncompressed(&self) -> Result<Vec<u8>> {
+        utils::g1_to_uncompressed(self.into())
+    }
 }
 
 impl From<PublicKeyG1> for G1 {
@@ -195,6 +207,18 @@ impl Signature {
         let uncompressed = G1::from_compressed(bytes.as_ref())?;
 
         Ok(Self(uncompressed))
+    }
+
+    /// Function to create a [Signature] from bytes representing a [G1] point in
+    /// uncompressed format.
+    pub fn from_uncompressed<T: AsRef<[u8]>>(bytes: T) -> Result<Self> {
+        Ok(Self(utils::from_uncompressed_to_g1(bytes.as_ref())?))
+    }
+
+    /// Function to serialize the [Signature] to vector of bytes in uncompressed
+    /// format.
+    pub fn to_uncompressed(&self) -> Result<Vec<u8>> {
+        utils::g1_to_uncompressed(self.into())
     }
 }
 
