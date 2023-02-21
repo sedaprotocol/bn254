@@ -107,6 +107,17 @@ pub(crate) fn from_uncompressed_to_g2(bytes: &[u8]) -> Result<G2> {
     Ok(g2_point.into())
 }
 
+/// Function to create a [G1] from bytes in uncompressed format.
+pub(crate) fn from_uncompressed_to_g1(bytes: &[u8]) -> Result<G1> {
+    if bytes.len() != 64 {
+        return Err(Error::InvalidLength {});
+    }
+    let x = Fq::from_slice(&bytes[0..32])?;
+    let y = Fq::from_slice(&bytes[32..64])?;
+    let g1_point = AffineG1::new(x, y)?;
+    Ok(g1_point.into())
+}
+
 /// Function to serialize the [G2] to vector of bytes in compressed format.
 pub(crate) fn g2_to_compressed(g2: G2) -> Result<Vec<u8>> {
     let modulus = Fq::modulus();
@@ -155,6 +166,21 @@ pub(crate) fn g2_to_uncompressed(g2: G2) -> Result<Vec<u8>> {
 
     // Get Y imaginary coordinate
     Fq::into_u256(affine_coords.y().imaginary()).to_big_endian(&mut result[96..128])?;
+
+    Ok(result.to_vec())
+}
+
+/// Function to serialize the [G1] to vector of bytes in uncompressed format.
+pub(crate) fn g1_to_uncompressed(g1: G1) -> Result<Vec<u8>> {
+    // From Jacobian to Affine first!
+    let affine_coords = AffineG1::from_jacobian(g1).ok_or(Error::PointInJacobian)?;
+    let mut result: [u8; 32 * 2] = [0; (2 * 32)];
+
+    // Get X coordinate
+    Fq::into_u256(affine_coords.x()).to_big_endian(&mut result[0..32])?;
+
+    // Get Y coordinate
+    Fq::into_u256(affine_coords.y()).to_big_endian(&mut result[32..64])?;
 
     Ok(result.to_vec())
 }
