@@ -26,7 +26,7 @@ pub(crate) const LAST_MULTIPLE_OF_FQ_MODULUS_LOWER_THAN_2_256: arith::U256 = ari
 /// # Returns
 ///
 /// * If successful, a point in the [G1] group representing the hashed point.
-pub(crate) fn hash_to_try_and_increment<T: AsRef<[u8]>>(message: T) -> Result<G1> {
+pub fn hash_to_try_and_increment<T: AsRef<[u8]>>(message: T) -> Result<G1> {
     // Add counter suffix
     // This message should be: ciphersuite || 0x01 || message || ctr
     // For the moment we work with message || ctr until a tag is decided
