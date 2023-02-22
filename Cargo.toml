@@ -13,7 +13,7 @@ repository = "https://github.com/sedaprotocol/bn254"
 readme = "README.md"
 
 [dependencies]
-bn = { package = "zeropool-bn", version = "0.5.11", features = [] }
+bn = { package = "zeropool-bn", features = [] }
 byteorder = "1.4"
 rand = { version = "0.8", default-features = false }
 sha2 = "0.10"
