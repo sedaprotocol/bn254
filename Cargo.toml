@@ -15,6 +15,7 @@ readme = "README.md"
 [dependencies]
 bn = { package = "zeropool-bn", features = [] }
 byteorder = "1.4"
+near-sdk = { version = "4.1.1", features = [] }
 rand = { version = "0.8", default-features = false }
 sha2 = "0.10"
 thiserror = "1.0"

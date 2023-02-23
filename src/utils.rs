@@ -1,10 +1,18 @@
 use bn::{
     arith::{U256, U512},
+    G1,
+    G2,
     *,
 };
 use byteorder::ByteOrder;
+use near_sdk::borsh::BorshSerialize;
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    hash::hash_to_try_and_increment,
+    PublicKey,
+    Signature,
+};
 
 /// Function to calculate the modulus of a [U256].
 ///
@@ -183,4 +191,23 @@ pub(crate) fn g1_to_uncompressed(g1: G1) -> Result<Vec<u8>> {
     Fq::into_u256(affine_coords.y()).to_big_endian(&mut result[32..64])?;
 
     Ok(result.to_vec())
+}
+
+pub fn format_pairing_check_values(
+    message: Vec<u8>,
+    signature: Vec<u8>,
+    public_key: Vec<u8>,
+) -> [([u8; 64], [u8; 128]); 2] {
+    // First pairing input: e(Uncompressed H(m) on G1, Uncompressed PubKey on G2)
+    let msg_hash_point = hash_to_try_and_increment(message).unwrap();
+    let msg_hash_arr: [u8; 64] = msg_hash_point.try_to_vec().unwrap().try_into().unwrap();
+    let pk_point = PublicKey::from_compressed(&public_key).unwrap();
+    let pk_arr: [u8; 128] = pk_point.0.try_to_vec().unwrap().try_into().unwrap();
+
+    // Second pairing input:  e(Uncompressed Signature on G1,-G2::one())
+    let sig_point = Signature::from_compressed(&signature).unwrap();
+    let sig_arr: [u8; 64] = sig_point.0.try_to_vec().unwrap().try_into().unwrap();
+    let n_g2: [u8; 128] = (-G2::one()).try_to_vec().unwrap().try_into().unwrap();
+
+    [(msg_hash_arr, pk_arr), (sig_arr, n_g2)]
 }
