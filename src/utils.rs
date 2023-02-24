@@ -193,21 +193,22 @@ pub(crate) fn g1_to_uncompressed(g1: G1) -> Result<Vec<u8>> {
     Ok(result.to_vec())
 }
 
+/// Function to format the inputs using Borsh for a pairing check
 pub fn format_pairing_check_values(
     message: Vec<u8>,
     signature: Vec<u8>,
     public_key: Vec<u8>,
-) -> [([u8; 64], [u8; 128]); 2] {
+) -> Result<[([u8; 64], [u8; 128]); 2]> {
     // First pairing input: e(Uncompressed H(m) on G1, Uncompressed PubKey on G2)
-    let msg_hash_point = hash_to_try_and_increment(message).unwrap();
-    let msg_hash_arr: [u8; 64] = msg_hash_point.try_to_vec().unwrap().try_into().unwrap();
-    let pk_point = PublicKey::from_compressed(&public_key).unwrap();
-    let pk_arr: [u8; 128] = pk_point.0.try_to_vec().unwrap().try_into().unwrap();
+    let msg_hash_point = hash_to_try_and_increment(message)?;
+    let msg_hash_arr: [u8; 64] = msg_hash_point.try_to_vec()?.try_into()?;
+    let pk_point = PublicKey::from_compressed(public_key)?;
+    let pk_arr: [u8; 128] = pk_point.0.try_to_vec()?.try_into()?;
 
     // Second pairing input:  e(Uncompressed Signature on G1,-G2::one())
-    let sig_point = Signature::from_compressed(&signature).unwrap();
-    let sig_arr: [u8; 64] = sig_point.0.try_to_vec().unwrap().try_into().unwrap();
-    let n_g2: [u8; 128] = (-G2::one()).try_to_vec().unwrap().try_into().unwrap();
+    let sig_point = Signature::from_compressed(signature)?;
+    let sig_arr: [u8; 64] = sig_point.0.try_to_vec()?.try_into()?;
+    let n_g2: [u8; 128] = (-G2::one()).try_to_vec()?.try_into()?;
 
-    [(msg_hash_arr, pk_arr), (sig_arr, n_g2)]
+    Ok([(msg_hash_arr, pk_arr), (sig_arr, n_g2)])
 }

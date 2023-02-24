@@ -22,6 +22,8 @@ pub enum Error {
     PointInJacobian,
     #[error("Bn254 verification failed")]
     VerificationFailed,
+    #[error("Serialization failed")]
+    SerializationError,
 }
 
 impl From<CurveError> for Error {
@@ -54,6 +56,18 @@ impl From<GroupError> for Error {
 impl From<bn::arith::Error> for Error {
     fn from(_error: bn::arith::Error) -> Self {
         Error::InvalidLength
+    }
+}
+
+impl From<std::vec::Vec<u8>> for Error {
+    fn from(_error: std::vec::Vec<u8>) -> Self {
+        Error::SerializationError
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(_error: std::io::Error) -> Self {
+        Error::SerializationError
     }
 }
 
