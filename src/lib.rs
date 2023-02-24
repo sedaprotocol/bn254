@@ -55,4 +55,4 @@ mod test {
 pub use ecdsa::{check_public_keys, ECDSA};
 pub use error::{Error, Result};
 pub use types::{PrivateKey, PublicKey, PublicKeyG1, Signature};
-pub use hash::hash_to_try_and_increment;
+pub use utils::format_pairing_check_values;
