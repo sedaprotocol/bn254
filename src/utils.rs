@@ -4,8 +4,8 @@ use bn::{
     G2,
     *,
 };
+use borsh::BorshSerialize;
 use byteorder::ByteOrder;
-use near_sdk::borsh::BorshSerialize;
 
 use crate::{
     error::{Error, Result},
