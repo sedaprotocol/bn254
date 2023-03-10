@@ -9,6 +9,7 @@ use crate::{
 };
 
 /// The Private Key as an element of [Fr]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrivateKey(pub Fr);
 
 impl PrivateKey {
@@ -50,7 +51,7 @@ impl From<&PrivateKey> for Fr {
 }
 
 /// The Public Key as a point in [G2]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct PublicKey(pub G2);
 
 impl PublicKey {

@@ -12,13 +12,24 @@ documentation = "https://docs.rs/bn254/"
 repository = "https://github.com/sedaprotocol/bn254"
 readme = "README.md"
 
+[features]
+default = []
+serde = []
+
+[package.metadata.docs.rs]
+features = ["serde"]
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 bn = { package = "zeropool-bn", features = [] }
 borsh = "0.9"
 byteorder = "1.4"
 rand = { version = "0.8", default-features = false }
+serde = { version = "1.0", optional = false }
 sha2 = "0.10"
 thiserror = "1.0"
 
 [dev-dependencies]
 hex = "0.4"
+rand = { version = "0.8", default-features = false, features = ["getrandom"] }
+serde_json = "1.0.94"

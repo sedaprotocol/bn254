@@ -40,6 +40,9 @@
 mod ecdsa;
 mod error;
 mod hash;
+#[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
+mod serde;
 mod types;
 mod utils;
 
@@ -49,6 +52,8 @@ mod test {
     use super::*;
     mod ecdsa_test;
     mod hash_test;
+    #[cfg(feature = "serde")]
+    mod serde_test;
     mod types_test;
 }
 
