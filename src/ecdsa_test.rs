@@ -5,10 +5,9 @@ use crate::ecdsa::check_public_keys;
 #[test]
 fn test_sign_1() {
     // Inputs: private key and message "sample" in ASCII
-    let private_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
     let data = hex::decode("73616d706c65").unwrap();
 
-    let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
+    let private_key = PrivateKey::try_from("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
 
     // Sign data with private key
     let signature = ECDSA::sign(data, &private_key).unwrap();
@@ -21,8 +20,7 @@ fn test_sign_1() {
 #[test]
 fn test_verify_signed_msg() {
     // Public key
-    let private_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
-    let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
+    let private_key = PrivateKey::try_from("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
     let public_key = PublicKey::from_private_key(&private_key);
 
     // Signature
@@ -46,15 +44,15 @@ fn test_verify_aggregate_signatures() {
     let msg = hex::decode("73616d706c65").unwrap();
 
     // Signature 1
-    let private_key_1_bytes = hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
-    let private_key_1 = PrivateKey::try_from(private_key_1_bytes.as_ref()).unwrap();
+    let private_key_1 =
+        PrivateKey::try_from("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
     let sign_1 = ECDSA::sign(&msg, &private_key_1).unwrap();
 
     let public_key_1 = PublicKey::from_private_key(&private_key_1);
 
     // Signature 2
-    let secret_key_2_bytes = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
-    let private_key_2 = PrivateKey::try_from(secret_key_2_bytes.as_ref()).unwrap();
+    let private_key_2 =
+        PrivateKey::try_from("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
     let sign_2 = ECDSA::sign(&msg, &private_key_2).unwrap();
 
     let public_key_2 = PublicKey::from_private_key(&private_key_2);
@@ -83,8 +81,7 @@ fn test_verify_aggregate_signatures() {
 /// Test if PubKey in G1 -> PubKey in G2: e(G1, P2) = e(P1, G2)
 #[test]
 fn test_verify_valid_public_keys_in_g1_g2() {
-    let private_key_bytes = hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
-    let private_key = PrivateKey::try_from(private_key_bytes.as_ref()).unwrap();
+    let private_key = PrivateKey::try_from("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
 
     // Get public keys in G1 and G2
     let public_g2 = PublicKey::from_private_key(&private_key);
@@ -101,12 +98,12 @@ fn test_verify_valid_public_keys_in_g1_g2() {
 #[test]
 fn test_verify_invalid_public_keys_in_g1_g2() {
     // Get public keys in G1 and G2 (from different private keys)
-    let private_key_1_bytes = hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
-    let private_key_1 = PrivateKey::try_from(private_key_1_bytes.as_ref()).unwrap();
+    let private_key_1 =
+        PrivateKey::try_from("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
     let public_g2 = PublicKey::from_private_key(&private_key_1);
 
-    let private_key_2_bytes = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
-    let private_key_2 = PrivateKey::try_from(private_key_2_bytes.as_ref()).unwrap();
+    let private_key_2 =
+        PrivateKey::try_from("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
     let public_g1 = PublicKeyG1::from_private_key(&private_key_2);
 
     // Check if valid
@@ -117,8 +114,7 @@ fn test_verify_invalid_public_keys_in_g1_g2() {
 /// Test 'PublicKeyG1::from_uncompressed' and 'PublicKeyG1::to_uncompressed'
 #[test]
 fn test_public_key_g1_from_uncompressed() {
-    let private_key_bytes = hex::decode("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
-    let private_key = PrivateKey::try_from(private_key_bytes.as_ref()).unwrap();
+    let private_key = PrivateKey::try_from("1ab1126ff2e37c6e6eddea943ccb3a48f83b380b856424ee552e113595525565").unwrap();
 
     // Get public keys in G1 and G2
     let public_g2 = PublicKey::from_private_key(&private_key);
@@ -138,8 +134,7 @@ fn test_public_key_g1_from_uncompressed() {
 #[test]
 fn test_sig_from_uncompressed() {
     // Public key
-    let private_key = hex::decode("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
-    let private_key = PrivateKey::try_from(private_key.as_ref()).unwrap();
+    let private_key = PrivateKey::try_from("2009da7287c158b126123c113d1c85241b6e3294dd75c643588630a8bc0f934c").unwrap();
     let public_key = PublicKey::from_private_key(&private_key);
 
     // Signature

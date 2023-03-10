@@ -38,6 +38,23 @@ impl TryFrom<&[u8]> for PrivateKey {
     }
 }
 
+impl TryFrom<&str> for PrivateKey {
+    type Error = Error;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        let bytes = hex::decode(value)?;
+        Self::try_from(bytes.as_slice())
+    }
+}
+
+impl TryFrom<String> for PrivateKey {
+    type Error = Error;
+
+    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
 impl From<PrivateKey> for Fr {
     fn from(private_key: PrivateKey) -> Self {
         private_key.0
