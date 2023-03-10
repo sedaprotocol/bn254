@@ -55,6 +55,15 @@ impl TryFrom<String> for PrivateKey {
     }
 }
 
+impl TryFrom<PrivateKey> for String {
+    type Error = Error;
+
+    fn try_from(value: PrivateKey) -> std::result::Result<Self, Self::Error> {
+        let bytes = value.to_bytes()?;
+        Ok(hex::encode(bytes))
+    }
+}
+
 impl From<PrivateKey> for Fr {
     fn from(private_key: PrivateKey) -> Self {
         private_key.0

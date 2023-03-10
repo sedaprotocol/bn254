@@ -19,6 +19,14 @@ fn test_valid_private_key() {
 }
 
 #[test]
+fn test_valid_private_key_hex() {
+    let hex = "023aed31b5a9e486366ea9988b05dba469c6206e58361d9c065bbea7d928204a";
+    let private_key = PrivateKey::try_from(hex).unwrap();
+    let hex_again: String = private_key.try_into().unwrap();
+    assert_eq!(hex, &hex_again);
+}
+
+#[test]
 #[should_panic(expected = "InvalidLength")]
 fn test_invalid_private_key_1() {
     let compressed = hex::decode(
