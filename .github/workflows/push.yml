@@ -28,7 +28,7 @@ jobs:
           command: fmt
           args: --all -- --check
 
-clippy_and_test:
+  clippy_and_test:
     name: Clippy and Test
     runs-on: ubuntu-latest
     steps:

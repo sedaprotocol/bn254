@@ -24,6 +24,8 @@ pub enum Error {
     VerificationFailed,
     #[error("Serialization failed")]
     SerializationError,
+    #[error(transparent)]
+    HexDecodeFailed(#[from] hex::FromHexError),
 }
 
 impl From<CurveError> for Error {

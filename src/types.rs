@@ -9,6 +9,7 @@ use crate::{
 };
 
 /// The Private Key as an element of [Fr]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrivateKey(pub Fr);
 
 impl PrivateKey {
@@ -37,6 +38,32 @@ impl TryFrom<&[u8]> for PrivateKey {
     }
 }
 
+impl TryFrom<&str> for PrivateKey {
+    type Error = Error;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        let bytes = hex::decode(value)?;
+        Self::try_from(bytes.as_slice())
+    }
+}
+
+impl TryFrom<String> for PrivateKey {
+    type Error = Error;
+
+    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
+impl TryFrom<PrivateKey> for String {
+    type Error = Error;
+
+    fn try_from(value: PrivateKey) -> std::result::Result<Self, Self::Error> {
+        let bytes = value.to_bytes()?;
+        Ok(hex::encode(bytes))
+    }
+}
+
 impl From<PrivateKey> for Fr {
     fn from(private_key: PrivateKey) -> Self {
         private_key.0
@@ -50,7 +77,7 @@ impl From<&PrivateKey> for Fr {
 }
 
 /// The Public Key as a point in [G2]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct PublicKey(pub G2);
 
 impl PublicKey {
