@@ -212,3 +212,28 @@ pub fn format_pairing_check_values(
 
     Ok([(msg_hash_arr, pk_arr), (sig_arr, n_g2)])
 }
+
+pub fn format_pairing_check_uncompressed_values(
+    message: Vec<u8>,
+    mut signature: Vec<u8>,
+    mut public_key: Vec<u8>,
+) -> Result<[([u8; 64], [u8; 128]); 2]> {
+    // convert to little endian
+    for i in [0, 32] {
+        signature[i..i + 32].reverse()
+    }
+    for i in [0, 32, 64, 96] {
+        public_key[i..i + 32].reverse()
+    }
+
+    // First pairing input: e(Uncompressed H(m) on G1, Uncompressed PubKey on G2)
+    let msg_hash_point = hash_to_try_and_increment(message)?;
+    let msg_hash_arr: [u8; 64] = msg_hash_point.try_to_vec()?.try_into()?;
+    let pk_arr: [u8; 128] = public_key.try_into()?;
+
+    // Second pairing input:  e(Uncompressed Signature on G1,-G2::one())
+    let sig_arr: [u8; 64] = signature.try_into()?;
+    let n_g2: [u8; 128] = (-G2::one()).try_to_vec()?.try_into()?;
+
+    Ok([(msg_hash_arr, pk_arr), (sig_arr, n_g2)])
+}

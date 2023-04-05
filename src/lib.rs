@@ -60,4 +60,4 @@ mod test {
 pub use ecdsa::{check_public_keys, ECDSA};
 pub use error::{Error, Result};
 pub use types::{PrivateKey, PublicKey, PublicKeyG1, Signature};
-pub use utils::format_pairing_check_values;
+pub use utils::{format_pairing_check_uncompressed_values, format_pairing_check_values};
