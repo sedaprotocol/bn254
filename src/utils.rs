@@ -219,10 +219,10 @@ pub fn format_pairing_check_uncompressed_values(
     mut public_key: Vec<u8>,
 ) -> Result<[([u8; 64], [u8; 128]); 2]> {
     // convert to little endian
-    for i in [0, 32] {
+    for i in (0..=32).step_by(32) {
         signature[i..i + 32].reverse()
     }
-    for i in [0, 32, 64, 96] {
+    for i in (0..=96).step_by(32) {
         public_key[i..i + 32].reverse()
     }
 
