@@ -21,7 +21,7 @@ features = ["serde"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-bn = { package = "zeropool-bn", features = [] }
+bn = { package = "zeropool-bn", features = [], version = "0.5.11" }
 borsh = "0.9"
 byteorder = "1.4"
 hex = "0.4"
