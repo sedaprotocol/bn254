@@ -15,5 +15,5 @@ imports_granularity = "Crate"
 imports_layout = "HorizontalVertical"
 reorder_impl_items = true
 struct_field_align_threshold = 120
-version = "Two"
+style_edition = "2021"
 wrap_comments = true
